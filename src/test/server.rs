@@ -9,6 +9,19 @@ use crate::manager::TaskManager;
 use crate::Server;
 
 #[derive(Serialize, Deserialize, Debug)]
+struct RegisterObject {
+    reg_object: String,
+}
+
+impl RegisterObject {
+    fn new(name: &str) -> Self {
+        Self {
+            reg_object: name.to_string(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 struct Success {
     success: String,
 }
@@ -19,11 +32,33 @@ struct Error {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct CallObject {
+pub struct CallObjectRequest {
     pub object: String,
     pub method: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub param: Option<HashMap<String, String>>,
+}
+
+impl CallObjectRequest {
+    pub fn new(object: &str, method: &str) -> Self {
+        Self {
+            object: object.to_string(),
+            method: method.to_string(),
+            param: None,
+        }
+    }
+
+    pub fn parameter(mut self, key: &str, value: &str) -> Self {
+        if self.param.is_none() {
+            self.param = Some(HashMap::new());
+        }
+
+        if let Some(param) = &mut self.param {
+            param.insert(key.to_owned(), value.to_owned());
+        }
+
+        self
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -31,13 +66,30 @@ pub struct CallObjectResponse {
     pub response: String,
 }
 
+impl CallObjectResponse {
+    pub fn new(response: &str) -> Self {
+        Self {
+            response: response.to_string(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(untagged)]
-enum Message {
+enum IncomingMessage {
     Register(Success),
     Error(Error),
-    Request(CallObject),
-    Response(CallObjectResponse),
+    CallRequest(CallObjectRequest),
+    CallResponse(CallObjectResponse),
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(untagged)]
+enum OutgoingMessage {
+    Register(RegisterObject),
+    Error(Error),
+    CallRequest(CallObjectRequest),
+    CallResponse(CallObjectResponse),
 }
 
 #[tokio::test]
@@ -52,8 +104,12 @@ async fn test_server() {
     let process1 = tokio::spawn(async move {
         let mut stream = TcpStream::connect("127.0.0.1:1986").await.unwrap();
 
-        let register = r#"{"reg_object":"my_object"}"#;
-        stream.write_all(register.as_bytes()).await.unwrap();
+        let register = OutgoingMessage::Register(RegisterObject::new("applications.oauth2"));
+
+        stream
+            .write_all(serde_json::to_vec(&register).unwrap().as_slice())
+            .await
+            .unwrap();
 
         loop {
             let mut buf = [0u8; std::u16::MAX as usize];
@@ -62,21 +118,27 @@ async fn test_server() {
             if n == 0 {
                 break;
             }
-            let result: Message = serde_json::from_slice(&buf[0..n]).unwrap();
+            let result: IncomingMessage = serde_json::from_slice(&buf[0..n]).unwrap();
 
             match result {
-                Message::Error(msg) => {
-                    println!("(1)Remote: Error Registration: {:?}", msg);
+                IncomingMessage::Error(msg) => {
+                    println!("(1)Remote: Error: {:?}", msg);
                 }
-                Message::Register(msg) => {
+                IncomingMessage::Register(msg) => {
                     println!("(1)Remote: Successful Registration: {:?}", msg);
                 }
-                Message::Request(msg) => {
+                IncomingMessage::CallRequest(msg) => {
                     println!("(1)Remote: Request: {:?}", msg);
-                    let response = r#"{"response":"my reply"}"#;
-                    stream.write_all(response.as_bytes()).await.unwrap();
+
+                    let response = OutgoingMessage::CallResponse(CallObjectResponse::new(
+                        r#"{"result":"ok"}"#,
+                    ));
+                    stream
+                        .write_all(serde_json::to_vec(&response).unwrap().as_slice())
+                        .await
+                        .unwrap();
                 }
-                Message::Response(msg) => {
+                IncomingMessage::CallResponse(msg) => {
                     println!("(1)Remote: Response: {:?}", msg);
                 }
             }
@@ -88,11 +150,10 @@ async fn test_server() {
         loop {
             let mut param = HashMap::new();
             param.insert("key".to_string(), "value".to_string());
-            let request = CallObject {
-                object: String::from("my_object"),
-                method: String::from("call"),
-                param: Some(param),
-            };
+            let request = CallObjectRequest::new("applications.oauth2", "login")
+                .parameter("key", "value")
+                .parameter("key1", "value1")
+                .parameter("key2", "value2");
 
             println!("Process 2: Request: {:?}", request);
             stream
@@ -104,20 +165,26 @@ async fn test_server() {
 
             let n = stream.read(&mut buf).await.unwrap();
 
-            let result: Message = serde_json::from_slice(&buf[0..n]).unwrap();
+            let result: IncomingMessage = serde_json::from_slice(&buf[0..n]).unwrap();
             match result {
-                Message::Error(msg) => {
-                    println!("(2)Remote: Error Registration: {:?}", msg);
+                IncomingMessage::Error(msg) => {
+                    println!("(2)Remote: Error: {:?}", msg);
                 }
-                Message::Register(msg) => {
+                IncomingMessage::Register(msg) => {
                     println!("(2)Remote: Response: {:?}", msg);
                 }
-                Message::Request(msg) => {
+                IncomingMessage::CallRequest(msg) => {
                     println!("(2)Remote: Request: {:?}", msg);
-                    let response = r#"{"success":"my reply"}"#;
-                    stream.write_all(response.as_bytes()).await.unwrap();
+
+                    let response = OutgoingMessage::CallResponse(CallObjectResponse::new(
+                        r#"{"result":"ok"}"#,
+                    ));
+                    stream
+                        .write_all(serde_json::to_vec(&response).unwrap().as_slice())
+                        .await
+                        .unwrap();
                 }
-                Message::Response(msg) => {
+                IncomingMessage::CallResponse(msg) => {
                     println!("(2)Remote: Response: {:?}", msg);
                     break;
                 }
