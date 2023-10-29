@@ -24,7 +24,8 @@ impl TaskManager {
                             println!("Register");
                             list_session.insert(data.reg_object, session.socket_holder);
                             println!("Number of list: {}", list_session.len());
-                            tx.send("OK".as_bytes().to_vec()).unwrap_or_else(|e| {
+                            let reg_ok = r#"{"success":"ok"}"#;
+                            tx.send(reg_ok.as_bytes().to_vec()).unwrap_or_else(|e| {
                                 eprintln!("{:?}", e);
                             });
                         }

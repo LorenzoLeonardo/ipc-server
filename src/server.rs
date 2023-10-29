@@ -59,15 +59,14 @@ impl Server {
                         eprintln!("Error writing data to client: {}", e);
                         break;
                     }
-                } else {
-                    if let Err(e) = socket
-                        .write_all(&Error::new("parse error").serialize())
-                        .await
-                    {
-                        eprintln!("Error writing data to client: {}", e);
-                        break;
-                    }
+                } else if let Err(e) = socket
+                    .write_all(&Error::new("parse error").serialize())
+                    .await
+                {
+                    eprintln!("Error writing data to client: {}", e);
+                    break;
                 }
+
                 println!("looping . . . .");
             } else {
                 // No data available to read, continue other tasks or operations.
