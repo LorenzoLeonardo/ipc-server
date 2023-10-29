@@ -42,29 +42,34 @@ impl Server {
                     break;
                 }
                 let received_data = &buffer[..bytes_read];
-                if let Ok(ipc_message) = serde_json::from_slice(received_data) {
-                    let session: Session = Session::new(ipc_message, ip.clone(), tcp.clone());
+                match serde_json::from_slice(received_data) {
+                    Ok(ipc_message) => {
+                        let session: Session = Session::new(ipc_message, ip.clone(), tcp.clone());
 
-                    let (oneshot_tx, oneshot_rx) = oneshot::channel();
-                    tx.send(Message::ProcessInput(session, oneshot_tx))
-                        .unwrap_or_else(|e| {
+                        let (oneshot_tx, oneshot_rx) = oneshot::channel();
+                        tx.send(Message::ProcessInput(session, oneshot_tx))
+                            .unwrap_or_else(|e| {
+                                eprintln!("{:?}", e);
+                            });
+
+                        let reply = oneshot_rx.await.unwrap_or_else(|e| {
                             eprintln!("{:?}", e);
+                            Vec::new()
                         });
-
-                    let reply = oneshot_rx.await.unwrap_or_else(|e| {
-                        eprintln!("{:?}", e);
-                        Vec::new()
-                    });
-                    if let Err(e) = socket.write_all(reply.as_slice()).await {
-                        eprintln!("Error writing data to client: {}", e);
-                        break;
+                        if let Err(e) = socket.write_all(reply.as_slice()).await {
+                            eprintln!("Error writing data to client: {}", e);
+                            break;
+                        }
                     }
-                } else if let Err(e) = socket
-                    .write_all(&Error::new("parse error").serialize())
-                    .await
-                {
-                    eprintln!("Error writing data to client: {}", e);
-                    break;
+                    Err(e) => {
+                        if let Err(e) = socket
+                            .write_all(&Error::new(e.to_string().as_str()).serialize().unwrap())
+                            .await
+                        {
+                            eprintln!("Error writing data to client: {}", e);
+                            break;
+                        }
+                    }
                 }
 
                 println!("looping . . . .");

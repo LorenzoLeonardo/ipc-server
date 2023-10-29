@@ -12,7 +12,7 @@ impl Error {
         }
     }
 
-    pub fn serialize(self) -> Vec<u8> {
-        serde_json::to_vec(&self).unwrap()
+    pub fn serialize(self) -> Result<Vec<u8>, serde_json::Error> {
+        serde_json::to_vec(&self)
     }
 }
