@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use serde_derive::{Deserialize, Serialize};
 use tokio::{
@@ -29,6 +29,8 @@ pub struct RegisterObject {
 pub struct CallObject {
     pub object: String,
     pub method: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub param: Option<HashMap<String, String>>,
 }
 
 #[derive(Serialize, Deserialize)]
