@@ -93,12 +93,3 @@ pub enum IncomingMessage {
     CallRequest(CallObjectRequest),
     CallResponse(CallObjectResponse),
 }
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(untagged)]
-pub enum OutgoingMessage {
-    Register(RegisterObject),
-    Error(Error),
-    CallRequest(CallObjectRequest),
-    CallResponse(CallObjectResponse),
-}
