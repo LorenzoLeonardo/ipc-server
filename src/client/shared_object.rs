@@ -6,7 +6,7 @@ use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 
 use super::error::Error;
-use super::message::{IncomingMessage, RegisterObject};
+use super::message::{CallObjectResponse, IncomingMessage, RegisterObject};
 
 #[async_trait]
 pub trait SharedObject: Send + Sync + 'static {
@@ -14,7 +14,7 @@ pub trait SharedObject: Send + Sync + 'static {
         &self,
         method: &str,
         param: Option<HashMap<String, String>>,
-    ) -> Result<Vec<u8>, Error>;
+    ) -> Result<CallObjectResponse, Error>;
 }
 
 pub struct ObjectDispatcher {
@@ -95,7 +95,10 @@ impl ObjectDispatcher {
                                 .await
                                 .unwrap();
 
-                            socket.write_all(result.to_vec().as_slice()).await.unwrap();
+                            socket
+                                .write_all(result.serialize().unwrap().as_slice())
+                                .await
+                                .unwrap();
                         }
                         IncomingMessage::CallResponse(_) => todo!(),
                     }

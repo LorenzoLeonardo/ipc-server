@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use ipc_client::client::connector::Connector;
-use ipc_client::client::message::IncomingMessage;
+use ipc_client::client::error::Error;
+use ipc_client::client::message::{CallObjectResponse, IncomingMessage};
 use ipc_client::client::shared_object::{ObjectDispatcher, SharedObject};
 
 use tokio::sync::mpsc::unbounded_channel;
@@ -20,11 +21,10 @@ impl SharedObject for Sample {
         &self,
         method: &str,
         param: Option<HashMap<String, String>>,
-    ) -> Result<Vec<u8>, ipc_client::client::error::Error> {
-        eprintln!("Method: {} Param: {:?}", method, param);
-        let reply = r#"{"response":"you have the4 token"}"#;
+    ) -> Result<CallObjectResponse, Error> {
+        println!("Method: {} Param: {:?}", method, param);
 
-        Ok(reply.as_bytes().to_vec())
+        Ok(CallObjectResponse::new("This is my response"))
     }
 }
 
