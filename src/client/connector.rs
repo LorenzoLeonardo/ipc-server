@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 use super::error::Error;
 use super::message::CallObjectRequest;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Connector {
     socket: Arc<Mutex<TcpStream>>,
 }

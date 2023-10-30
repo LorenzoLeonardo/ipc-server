@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use serde_derive::{Deserialize, Serialize};
 
+use super::error;
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RegisterObject {
     reg_object: String,
@@ -13,6 +15,10 @@ impl RegisterObject {
             reg_object: name.to_string(),
         }
     }
+
+    pub fn serialize(self) -> Result<Vec<u8>, error::Error> {
+        serde_json::to_vec(&self).map_err(|e| error::Error::Serde(e.to_string()))
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -22,7 +28,7 @@ pub struct Success {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Error {
-    error: String,
+    pub error: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
