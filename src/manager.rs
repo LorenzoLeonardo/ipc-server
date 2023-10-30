@@ -8,7 +8,7 @@ use tokio::{
 
 use crate::{
     error::Error,
-    message::{CallObject, IpcMessage, Message, Success},
+    message::{CallObject, IpcMessage, Message, StaticReplies, Success},
 };
 
 pub struct TaskManager;
@@ -28,7 +28,7 @@ impl TaskManager {
                                         list_session.insert(data.reg_object, session.socket_holder);
                                         log::trace!("No. of shared objects: {}", list_session.len());
 
-                                        tx.send(Success::new("ok").serialize().unwrap())
+                                        tx.send(Success::new(StaticReplies::Ok.as_ref()).serialize().unwrap())
                                             .unwrap_or_else(|e| {
                                                 log::error!("{:?}", e);
                                             });
@@ -38,7 +38,7 @@ impl TaskManager {
                                         if let Some(s) = list_session.get(request.object.as_str()) {
                                             TaskManager::handle_call_request(s.socket.clone(), request, tx).await;
                                         } else {
-                                            tx.send(Error::new("object not found").serialize().unwrap())
+                                            tx.send(Error::new(StaticReplies::ObjectNotFound.as_ref()).serialize().unwrap())
                                                 .unwrap_or_else(|e| {
                                                     log::error!("{:?}", e);
                                                 });
@@ -50,7 +50,7 @@ impl TaskManager {
                             Message::RemoveRegistered(session) => {
                                 log::trace!("{:?}", session);
                                 list_session.retain(|_, v| v.name != session.socket_holder.name);
-                                log::trace!("Number of list: {}", list_session.len());
+                                log::trace!("No. of shared objects: {}", list_session.len());
                             }
                         }
                     },
@@ -87,7 +87,7 @@ impl TaskManager {
         if let Ok(bytes_read) = socket.read(&mut buffer).await {
             if bytes_read == 0 {
                 tx.send(
-                    Error::new("client has lost connection")
+                    Error::new(StaticReplies::ClientConnectionError.as_ref())
                         .serialize()
                         .unwrap(),
                 )
@@ -101,10 +101,14 @@ impl TaskManager {
                 });
             }
         } else {
-            tx.send(Error::new("read error").serialize().unwrap())
-                .unwrap_or_else(|e| {
-                    log::error!("{:?}", e);
-                });
+            tx.send(
+                Error::new(StaticReplies::ClientConnectionError.as_ref())
+                    .serialize()
+                    .unwrap(),
+            )
+            .unwrap_or_else(|e| {
+                log::error!("{:?}", e);
+            });
         }
     }
 }

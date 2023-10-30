@@ -41,7 +41,7 @@ async fn test_server() {
         let mut shared = ObjectDispatcher::new().await.unwrap();
         let shared_object = Sample;
         shared
-            .register_object("applications.oauth2", Box::new(shared_object))
+            .register_object("object.name", Box::new(shared_object))
             .await
             .unwrap();
         shared.spawn().await;
@@ -52,7 +52,7 @@ async fn test_server() {
 
         for n in 0..2 {
             let result = proxy
-                .remote_call("applications.oauth2", "login", None)
+                .remote_call("object.name", "login", None)
                 .await
                 .unwrap();
 

@@ -1,6 +1,9 @@
 use std::{collections::HashMap, sync::Arc};
 
 use serde_derive::{Deserialize, Serialize};
+use strum::AsRefStr;
+use strum_macros::Display;
+use strum_macros::EnumString;
 use tokio::{
     net::TcpStream,
     sync::{oneshot::Sender, Mutex},
@@ -79,4 +82,18 @@ impl Session {
             },
         }
     }
+}
+
+#[derive(Debug, EnumString, Display, AsRefStr)]
+pub enum StaticReplies {
+    #[strum(serialize = "OK")]
+    Ok,
+    #[strum(serialize = "Object not found")]
+    ObjectNotFound,
+    #[strum(serialize = "client connection error")]
+    ClientConnectionError,
+    #[strum(serialize = "server connection error")]
+    ServerConnectionError,
+    #[strum(serialize = "serde parsing error")]
+    SerdeParseError,
 }

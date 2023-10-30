@@ -1,6 +1,7 @@
 use std::{collections::HashMap, fmt::Display};
 
 use serde_derive::{Deserialize, Serialize};
+use strum_macros::{AsRefStr, Display, EnumString};
 
 use super::error;
 
@@ -32,8 +33,10 @@ pub struct Error {
 }
 
 impl Error {
-    pub fn new(error: String) -> Self {
-        Self { error }
+    pub fn new(error: &str) -> Self {
+        Self {
+            error: error.to_string(),
+        }
     }
 }
 
@@ -117,4 +120,18 @@ impl OutgoingMessage {
     pub fn serialize(self) -> Result<Vec<u8>, serde_json::Error> {
         serde_json::to_vec(&self)
     }
+}
+
+#[derive(Debug, EnumString, Display, AsRefStr)]
+pub enum StaticReplies {
+    #[strum(serialize = "OK")]
+    Ok,
+    #[strum(serialize = "Object not found")]
+    ObjectNotFound,
+    #[strum(serialize = "client connection error")]
+    ClientConnectionError,
+    #[strum(serialize = "server connection error")]
+    ServerConnectionError,
+    #[strum(serialize = "serde parsing error")]
+    SerdeParseError,
 }

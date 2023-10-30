@@ -6,7 +6,7 @@ use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 
 use super::error::Error;
-use super::message::{self, IncomingMessage, OutgoingMessage, RegisterObject};
+use super::message::{self, IncomingMessage, OutgoingMessage, RegisterObject, StaticReplies};
 
 #[async_trait]
 pub trait SharedObject: Send + Sync + 'static {
@@ -57,7 +57,7 @@ impl ObjectDispatcher {
             .map_err(|e| Error::Io(e.to_string()))?;
 
         if n == 0 {
-            Err(Error::Io("server connection error".to_string()))
+            Err(Error::Io(StaticReplies::ServerConnectionError.to_string()))
         } else {
             let msg: IncomingMessage =
                 serde_json::from_slice(&buf[0..n]).map_err(|e| Error::Serde(e.to_string()))?;
@@ -96,7 +96,7 @@ impl ObjectDispatcher {
                                 call.remote_call(&request.method, request.param).await
                             } else {
                                 OutgoingMessage::Error(message::Error::new(
-                                    "object not found".to_string(),
+                                    StaticReplies::ObjectNotFound.as_ref(),
                                 ))
                             };
                             socket
@@ -109,8 +109,9 @@ impl ObjectDispatcher {
                         }
                     }
                 } else {
-                    let response =
-                        OutgoingMessage::Error(message::Error::new("Serde error".to_string()));
+                    let response = OutgoingMessage::Error(message::Error::new(
+                        StaticReplies::SerdeParseError.as_ref(),
+                    ));
                     socket
                         .write_all(response.serialize().unwrap().as_slice())
                         .await

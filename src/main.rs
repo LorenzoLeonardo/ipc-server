@@ -5,6 +5,8 @@ mod server;
 #[cfg(test)]
 mod test;
 
+use std::error::Error;
+
 use server::Server;
 use tokio::sync::mpsc::unbounded_channel;
 
@@ -23,17 +25,18 @@ pub fn setup_logger() -> Result<(), fern::InitError> {
         })
         .level(log::LevelFilter::Trace)
         .chain(std::io::stdout())
-        .chain(fern::log_file("output.log")?)
         .apply()?;
     Ok(())
 }
 
 #[tokio::main(flavor = "current_thread")]
-async fn main() {
-    setup_logger().unwrap();
+async fn main() -> Result<(), Box<dyn Error>> {
+    setup_logger()?;
 
     let (tx, rx) = unbounded_channel();
 
     TaskManager::spawn(rx).await;
-    Server::spawn(tx).await
+    Server::spawn(tx).await;
+
+    Ok(())
 }
