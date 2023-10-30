@@ -46,12 +46,19 @@ impl CallObjectRequest {
         if self.param.is_none() {
             self.param = Some(HashMap::new());
         }
-
         if let Some(param) = &mut self.param {
             param.insert(key.to_owned(), value.to_owned());
         }
-
         self
+    }
+
+    pub fn parameters(mut self, param: Option<HashMap<String, String>>) -> Self {
+        self.param = param;
+        self
+    }
+
+    pub fn serialize(self) -> Result<Vec<u8>, serde_json::Error> {
+        serde_json::to_vec(&self)
     }
 }
 
