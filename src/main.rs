@@ -16,10 +16,11 @@ pub fn setup_logger() -> Result<(), fern::InitError> {
     fern::Dispatch::new()
         .format(|out, message, record| {
             out.finish(format_args!(
-                "[{}][{}][{}]: {}",
+                "[{}][{}][{}:{}]: {}",
                 chrono::Local::now().format("%H:%M:%S%.9f"),
                 record.level(),
                 record.target(),
+                record.line().unwrap_or(0),
                 message
             ))
         })

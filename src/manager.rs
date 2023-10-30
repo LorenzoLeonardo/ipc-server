@@ -8,7 +8,7 @@ use tokio::{
 
 use crate::{
     error::Error,
-    message::{CallObject, IpcMessage, Message, StaticReplies, Success},
+    message::{CallObject, IpcMessage, ListObjects, Message, StaticReplies, Success},
 };
 
 pub struct TaskManager;
@@ -43,6 +43,28 @@ impl TaskManager {
                                                     log::error!("{:?}", e);
                                                 });
                                         }
+                                    }
+                                    IpcMessage::WaitForObjects(request) => {
+                                        let mut found = true;
+                                        for item in request.list.clone() {
+                                            if list_session.get(&item).is_none() {
+                                                found = false;
+                                                break;
+                                            }
+                                        }
+
+                                        let response = if found {
+                                            log::trace!("{:?} object are available.", request);
+                                            serde_json::to_vec(&request).unwrap()
+                                        } else {
+                                            log::trace!("{:?} object not yet available.", request);
+                                            let list = ListObjects::new(Vec::new());
+                                            serde_json::to_vec(&list).unwrap()
+                                        };
+
+                                        tx.send(response).unwrap_or_else(|e| {
+                                            log::error!("{:?}", e);
+                                        });
                                     }
                                     _ => {}
                                 }

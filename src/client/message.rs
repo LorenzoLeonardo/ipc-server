@@ -101,12 +101,24 @@ impl CallObjectResponse {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct ListObjects {
+    pub list: Vec<String>,
+}
+
+impl ListObjects {
+    pub fn new(list: Vec<String>) -> Self {
+        Self { list }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(untagged)]
 pub enum IncomingMessage {
     Register(Success),
     Error(Error),
     CallRequest(CallObjectRequest),
     CallResponse(CallObjectResponse),
+    WaitForObjects(ListObjects),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -114,6 +126,7 @@ pub enum IncomingMessage {
 pub enum OutgoingMessage {
     Error(Error),
     CallResponse(CallObjectResponse),
+    WaitForObjects(ListObjects),
 }
 
 impl OutgoingMessage {

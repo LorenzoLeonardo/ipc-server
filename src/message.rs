@@ -64,12 +64,24 @@ impl Success {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct ListObjects {
+    pub list: Vec<String>,
+}
+
+impl ListObjects {
+    pub fn new(list: Vec<String>) -> Self {
+        Self { list }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(untagged)]
 pub enum IpcMessage {
     None,
     Register(RegisterObject),
     Call(CallObject),
     Success(Success),
+    WaitForObjects(ListObjects),
 }
 
 impl Session {

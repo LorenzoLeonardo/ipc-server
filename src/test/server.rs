@@ -1,11 +1,11 @@
 use core::panic;
 use std::collections::HashMap;
-use std::time::Duration;
 
 use ipc_client::client::connector::Connector;
 use ipc_client::client::message::{CallObjectResponse, IncomingMessage, OutgoingMessage};
 use ipc_client::client::shared_object::{ObjectDispatcher, SharedObject};
 
+use ipc_client::client::wait_for_objects;
 use tokio::sync::mpsc::unbounded_channel;
 
 use async_trait::async_trait;
@@ -45,34 +45,27 @@ async fn test_server() {
             .register_object("object.name", Box::new(shared_object))
             .await
             .unwrap();
-        let _ = shared.spawn();
+        let _r = shared.spawn();
     });
 
     let process2 = tokio::spawn(async move {
+        // Wait for objects before connecting.
+        let list = vec!["object.name".to_string()];
+        wait_for_objects::wait_for_objects(list).await;
+
         let proxy = Connector::connect().await.unwrap();
 
-        for n in 0..2 {
-            let result = proxy
-                .remote_call("object.name", "login", None)
-                .await
-                .unwrap();
+        let result = proxy
+            .remote_call("object.name", "login", None)
+            .await
+            .unwrap();
 
-            let result: IncomingMessage = serde_json::from_slice(result.as_slice()).unwrap();
+        let result: IncomingMessage = serde_json::from_slice(result.as_slice()).unwrap();
 
-            if n == 0 {
-                if let IncomingMessage::Error(e) = result {
-                    log::trace!("{:?}", e);
-                } else {
-                    panic!("There is no object shared yet!");
-                }
-            } else {
-                if let IncomingMessage::CallResponse(e) = result {
-                    log::trace!("{:?}", e);
-                } else {
-                    panic!("There is must be a valid response now!");
-                }
-            }
-            tokio::time::sleep(Duration::from_millis(1)).await;
+        if let IncomingMessage::CallResponse(e) = result {
+            log::trace!("{:?}", e);
+        } else {
+            panic!("There is must be a valid response now!");
         }
     });
 
