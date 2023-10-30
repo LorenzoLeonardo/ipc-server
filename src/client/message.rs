@@ -31,6 +31,12 @@ pub struct Error {
     pub error: String,
 }
 
+impl Error {
+    pub fn new(error: String) -> Self {
+        Self { error }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CallObjectRequest {
     pub object: String,
@@ -92,4 +98,17 @@ pub enum IncomingMessage {
     Error(Error),
     CallRequest(CallObjectRequest),
     CallResponse(CallObjectResponse),
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(untagged)]
+pub enum OutgoingMessage {
+    Error(Error),
+    CallResponse(CallObjectResponse),
+}
+
+impl OutgoingMessage {
+    pub fn serialize(self) -> Result<Vec<u8>, serde_json::Error> {
+        serde_json::to_vec(&self)
+    }
 }

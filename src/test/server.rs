@@ -2,8 +2,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use ipc_client::client::connector::Connector;
-use ipc_client::client::error::Error;
-use ipc_client::client::message::{CallObjectResponse, IncomingMessage};
+use ipc_client::client::message::{CallObjectResponse, IncomingMessage, OutgoingMessage};
 use ipc_client::client::shared_object::{ObjectDispatcher, SharedObject};
 
 use tokio::sync::mpsc::unbounded_channel;
@@ -21,10 +20,10 @@ impl SharedObject for Sample {
         &self,
         method: &str,
         param: Option<HashMap<String, String>>,
-    ) -> Result<CallObjectResponse, Error> {
+    ) -> OutgoingMessage {
         println!("Method: {} Param: {:?}", method, param);
 
-        Ok(CallObjectResponse::new("This is my response"))
+        OutgoingMessage::CallResponse(CallObjectResponse::new("This is my response"))
     }
 }
 

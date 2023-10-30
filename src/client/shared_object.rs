@@ -6,7 +6,7 @@ use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 
 use super::error::Error;
-use super::message::{CallObjectResponse, IncomingMessage, RegisterObject};
+use super::message::{self, IncomingMessage, OutgoingMessage, RegisterObject};
 
 #[async_trait]
 pub trait SharedObject: Send + Sync + 'static {
@@ -14,7 +14,7 @@ pub trait SharedObject: Send + Sync + 'static {
         &self,
         method: &str,
         param: Option<HashMap<String, String>>,
-    ) -> Result<CallObjectResponse, Error>;
+    ) -> OutgoingMessage;
 }
 
 pub struct ObjectDispatcher {
@@ -57,16 +57,21 @@ impl ObjectDispatcher {
             .map_err(|e| Error::Io(e.to_string()))?;
 
         if n == 0 {
-            Err(Error::Io("remote connection error".to_string()))
+            Err(Error::Io("server connection error".to_string()))
         } else {
             let msg: IncomingMessage =
                 serde_json::from_slice(&buf[0..n]).map_err(|e| Error::Serde(e.to_string()))?;
 
             match msg {
-                IncomingMessage::Register(_) => Ok(()),
+                IncomingMessage::Register(msg) => {
+                    println!("Success: {:?}", msg);
+                    Ok(())
+                }
                 IncomingMessage::Error(msg) => Err(Error::Other(msg.error)),
-                IncomingMessage::CallRequest(_) => Ok(()),
-                IncomingMessage::CallResponse(_) => Ok(()),
+                _ => {
+                    println!("Unhandled Message: {:?}", msg);
+                    Ok(())
+                }
             }
         }
     }
@@ -81,27 +86,35 @@ impl ObjectDispatcher {
                 let n = socket.read(&mut buf).await.unwrap();
 
                 if n == 0 {
-                    panic!("Server was closed");
-                } else {
-                    let msg: IncomingMessage = serde_json::from_slice(&buf[0..n]).unwrap();
+                    eprintln!("Error: server connection error");
+                    break;
+                } else if let Ok(msg) = serde_json::from_slice(&buf[0..n]) {
                     match msg {
-                        IncomingMessage::Register(_) => todo!(),
-                        IncomingMessage::Error(_) => todo!(),
                         IncomingMessage::CallRequest(request) => {
                             let val = list.lock().await;
-                            let call = val.get(&request.object).unwrap();
-                            let result = call
-                                .remote_call(&request.method, request.param)
-                                .await
-                                .unwrap();
-
+                            let response = if let Some(call) = val.get(&request.object) {
+                                call.remote_call(&request.method, request.param).await
+                            } else {
+                                OutgoingMessage::Error(message::Error::new(
+                                    "object not found".to_string(),
+                                ))
+                            };
                             socket
-                                .write_all(result.serialize().unwrap().as_slice())
+                                .write_all(response.serialize().unwrap().as_slice())
                                 .await
-                                .unwrap();
+                                .unwrap_or_else(|e| eprintln!("{:?}", e));
                         }
-                        IncomingMessage::CallResponse(_) => todo!(),
+                        _ => {
+                            println!("Unhandled Message: {:?}", msg);
+                        }
                     }
+                } else {
+                    let response =
+                        OutgoingMessage::Error(message::Error::new("Serde error".to_string()));
+                    socket
+                        .write_all(response.serialize().unwrap().as_slice())
+                        .await
+                        .unwrap_or_else(|e| eprintln!("{:?}", e));
                 }
             }
         })
