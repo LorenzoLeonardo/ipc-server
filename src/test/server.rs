@@ -50,14 +50,27 @@ async fn test_server() {
     let process2 = tokio::spawn(async move {
         let proxy = Connector::connect().await.unwrap();
 
-        for _n in 0..2 {
+        for n in 0..2 {
             let result = proxy
                 .remote_call("applications.oauth2", "login", None)
                 .await
                 .unwrap();
 
             let result: IncomingMessage = serde_json::from_slice(result.as_slice()).unwrap();
-            log::trace!("Result: {:?}", result);
+
+            if n == 0 {
+                if let IncomingMessage::Error(e) = result {
+                    log::trace!("{:?}", e);
+                } else {
+                    panic!("There is no object shared yet!");
+                }
+            } else {
+                if let IncomingMessage::CallResponse(e) = result {
+                    log::trace!("{:?}", e);
+                } else {
+                    panic!("There is must be a valid response now!");
+                }
+            }
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
     });
