@@ -85,7 +85,7 @@ impl CallObjectRequest {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CallObjectResponse {
-    response: String,
+    pub response: String,
 }
 
 impl CallObjectResponse {
