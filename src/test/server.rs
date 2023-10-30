@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use ipc_client::client::connector::{
+use ipc_client::client::message::{
     CallObjectRequest, CallObjectResponse, IncomingMessage, OutgoingMessage, RegisterObject,
 };
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
