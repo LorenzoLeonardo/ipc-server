@@ -67,7 +67,7 @@ impl ObjectDispatcher {
                     println!("Success: {:?}", msg);
                     Ok(())
                 }
-                IncomingMessage::Error(msg) => Err(Error::Other(msg.error)),
+                IncomingMessage::Error(msg) => Err(Error::Other(msg.to_string())),
                 _ => {
                     println!("Unhandled Message: {:?}", msg);
                     Ok(())

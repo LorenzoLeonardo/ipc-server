@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
 use serde_derive::{Deserialize, Serialize};
 
@@ -28,12 +28,18 @@ pub struct Success {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Error {
-    pub error: String,
+    error: String,
 }
 
 impl Error {
     pub fn new(error: String) -> Self {
         Self { error }
+    }
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.error)
     }
 }
 
@@ -76,7 +82,7 @@ impl CallObjectRequest {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CallObjectResponse {
-    pub response: String,
+    response: String,
 }
 
 impl CallObjectResponse {
