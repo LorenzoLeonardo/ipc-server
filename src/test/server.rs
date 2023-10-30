@@ -10,7 +10,7 @@ use tokio::sync::mpsc::unbounded_channel;
 use async_trait::async_trait;
 
 use crate::manager::TaskManager;
-use crate::Server;
+use crate::{setup_logger, Server};
 
 struct Sample;
 
@@ -21,7 +21,7 @@ impl SharedObject for Sample {
         method: &str,
         param: Option<HashMap<String, String>>,
     ) -> OutgoingMessage {
-        println!("Method: {} Param: {:?}", method, param);
+        log::trace!("Method: {} Param: {:?}", method, param);
 
         OutgoingMessage::CallResponse(CallObjectResponse::new("This is my response"))
     }
@@ -29,6 +29,7 @@ impl SharedObject for Sample {
 
 #[tokio::test]
 async fn test_server() {
+    setup_logger().unwrap();
     let (tx, rx) = unbounded_channel();
 
     let server = tokio::spawn(async move {
@@ -56,8 +57,8 @@ async fn test_server() {
                 .unwrap();
 
             let result: IncomingMessage = serde_json::from_slice(result.as_slice()).unwrap();
-            println!("Result: {:?}", result);
-            tokio::time::sleep(Duration::from_secs(2)).await;
+            log::trace!("Result: {:?}", result);
+            tokio::time::sleep(Duration::from_millis(50)).await;
         }
     });
 

@@ -19,7 +19,7 @@ impl Server {
     pub async fn spawn(tx: UnboundedSender<Message>) {
         let listener = TcpListener::bind("127.0.0.1:1986").await.unwrap();
 
-        println!("Server listening on 127.0.0.1:1986");
+        log::trace!("Server listening on 127.0.0.1:1986");
         loop {
             let (socket, _) = listener.accept().await.unwrap();
             tokio::spawn(Server::handle_client(socket, tx.clone()));
@@ -28,7 +28,7 @@ impl Server {
 
     async fn handle_client(socket: TcpStream, tx: UnboundedSender<Message>) {
         let ip = socket.peer_addr().unwrap().to_string();
-        println!("Client connected: {}", ip);
+        log::trace!("Client connected: {}", ip);
 
         let mut buffer = [0u8; u16::MAX as usize];
         let tcp = Arc::new(Mutex::new(socket));
@@ -49,15 +49,15 @@ impl Server {
                         let (oneshot_tx, oneshot_rx) = oneshot::channel();
                         tx.send(Message::ProcessInput(session, oneshot_tx))
                             .unwrap_or_else(|e| {
-                                eprintln!("{:?}", e);
+                                log::error!("{:?}", e);
                             });
 
                         let reply = oneshot_rx.await.unwrap_or_else(|e| {
-                            eprintln!("{:?}", e);
+                            log::error!("{:?}", e);
                             Vec::new()
                         });
                         if let Err(e) = socket.write_all(reply.as_slice()).await {
-                            eprintln!("Error writing data to client: {}", e);
+                            log::error!("Error writing data to client: {}", e);
                             break;
                         }
                     }
@@ -66,13 +66,11 @@ impl Server {
                             .write_all(&Error::new(e.to_string().as_str()).serialize().unwrap())
                             .await
                         {
-                            eprintln!("Error writing data to client: {}", e);
+                            log::error!("Error writing data to client: {}", e);
                             break;
                         }
                     }
                 }
-
-                println!("looping . . . .");
             } else {
                 // No data available to read, continue other tasks or operations.
                 tokio::task::yield_now().await;
@@ -83,8 +81,8 @@ impl Server {
 
         tx.send(Message::RemoveRegistered(session))
             .unwrap_or_else(|e| {
-                eprintln!("{:?}", e);
+                log::error!("{:?}", e);
             });
-        println!("Client disconnected: {:?}", ip);
+        log::trace!("Client disconnected: {:?}", ip);
     }
 }

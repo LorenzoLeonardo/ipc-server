@@ -64,12 +64,12 @@ impl ObjectDispatcher {
 
             match msg {
                 IncomingMessage::Register(msg) => {
-                    println!("Success: {:?}", msg);
+                    log::trace!("Success: {:?}", msg);
                     Ok(())
                 }
                 IncomingMessage::Error(msg) => Err(Error::Other(msg.to_string())),
                 _ => {
-                    println!("Unhandled Message: {:?}", msg);
+                    log::trace!("Unhandled Message: {:?}", msg);
                     Ok(())
                 }
             }
@@ -86,7 +86,7 @@ impl ObjectDispatcher {
                 let n = socket.read(&mut buf).await.unwrap();
 
                 if n == 0 {
-                    eprintln!("Error: server connection error");
+                    log::error!("Error: server connection error");
                     break;
                 } else if let Ok(msg) = serde_json::from_slice(&buf[0..n]) {
                     match msg {
@@ -102,10 +102,10 @@ impl ObjectDispatcher {
                             socket
                                 .write_all(response.serialize().unwrap().as_slice())
                                 .await
-                                .unwrap_or_else(|e| eprintln!("{:?}", e));
+                                .unwrap_or_else(|e| log::error!("{:?}", e));
                         }
                         _ => {
-                            println!("Unhandled Message: {:?}", msg);
+                            log::trace!("Unhandled Message: {:?}", msg);
                         }
                     }
                 } else {
@@ -114,7 +114,7 @@ impl ObjectDispatcher {
                     socket
                         .write_all(response.serialize().unwrap().as_slice())
                         .await
-                        .unwrap_or_else(|e| eprintln!("{:?}", e));
+                        .unwrap_or_else(|e| log::error!("{:?}", e));
                 }
             }
         })

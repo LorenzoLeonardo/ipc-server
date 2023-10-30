@@ -24,23 +24,23 @@ impl TaskManager {
                             Message::ProcessInput(session, tx) => {
                                 match session.msg {
                                     IpcMessage::Register(data) => {
-                                        println!("Register");
+                                        log::trace!("{:?}", data);
                                         list_session.insert(data.reg_object, session.socket_holder);
-                                        println!("Number of list: {}", list_session.len());
+                                        log::trace!("No. of shared objects: {}", list_session.len());
 
                                         tx.send(Success::new("ok").serialize().unwrap())
                                             .unwrap_or_else(|e| {
-                                                eprintln!("{:?}", e);
+                                                log::error!("{:?}", e);
                                             });
                                     }
                                     IpcMessage::Call(request) => {
-                                        println!("Call");
+                                        log::trace!("{:?}", request);
                                         if let Some(s) = list_session.get(request.object.as_str()) {
                                             TaskManager::handle_call_request(s.socket.clone(), request, tx).await;
                                         } else {
                                             tx.send(Error::new("object not found").serialize().unwrap())
                                                 .unwrap_or_else(|e| {
-                                                    eprintln!("{:?}", e);
+                                                    log::error!("{:?}", e);
                                                 });
                                         }
                                     }
@@ -48,8 +48,9 @@ impl TaskManager {
                                 }
                             },
                             Message::RemoveRegistered(session) => {
+                                log::trace!("{:?}", session);
                                 list_session.retain(|_, v| v.name != session.socket_holder.name);
-                                println!("Number of list: {}", list_session.len());
+                                log::trace!("Number of list: {}", list_session.len());
                             }
                         }
                     },
@@ -69,13 +70,13 @@ impl TaskManager {
             Ok(request) => {
                 // Forward this call request to the destination process
                 socket.write_all(&request).await.unwrap_or_else(|e| {
-                    eprintln!("{:?}", e);
+                    log::error!("{:?}", e);
                 });
             }
             Err(e) => {
                 tx.send(Error::new(e.to_string().as_str()).serialize().unwrap())
                     .unwrap_or_else(|e| {
-                        eprintln!("{:?}", e);
+                        log::error!("{:?}", e);
                     });
                 return;
             }
@@ -91,18 +92,18 @@ impl TaskManager {
                         .unwrap(),
                 )
                 .unwrap_or_else(|e| {
-                    eprintln!("{:?}", e);
+                    log::error!("{:?}", e);
                 });
             } else {
                 // Forward the response of the call object back to the calling process
                 tx.send(buffer[..bytes_read].to_vec()).unwrap_or_else(|e| {
-                    eprintln!("{:?}", e);
+                    log::error!("{:?}", e);
                 });
             }
         } else {
             tx.send(Error::new("read error").serialize().unwrap())
                 .unwrap_or_else(|e| {
-                    eprintln!("{:?}", e);
+                    log::error!("{:?}", e);
                 });
         }
     }
