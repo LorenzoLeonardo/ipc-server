@@ -28,7 +28,7 @@ impl Server {
 
     async fn handle_client(socket: TcpStream, tx: UnboundedSender<Message>) {
         let ip = socket.peer_addr().unwrap().to_string();
-        log::trace!("Client connected: {}", ip);
+        log::trace!("[{}]: Client connected", ip);
 
         let mut buffer = [0u8; u16::MAX as usize];
         let tcp = Arc::new(Mutex::new(socket));
@@ -83,6 +83,6 @@ impl Server {
             .unwrap_or_else(|e| {
                 log::error!("{:?}", e);
             });
-        log::trace!("Client disconnected: {:?}", ip);
+        log::trace!("[{}]: Client disconnected", ip);
     }
 }

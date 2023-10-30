@@ -64,7 +64,7 @@ impl ObjectDispatcher {
 
             match msg {
                 IncomingMessage::Register(msg) => {
-                    log::trace!("Success: {:?}", msg);
+                    log::trace!("Register Object: {:?}", msg);
                     Ok(())
                 }
                 IncomingMessage::Error(msg) => Err(Error::Other(msg.to_string())),

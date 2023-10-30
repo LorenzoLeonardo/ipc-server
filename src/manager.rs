@@ -24,9 +24,10 @@ impl TaskManager {
                             Message::ProcessInput(session, tx) => {
                                 match session.msg {
                                     IpcMessage::Register(data) => {
-                                        log::trace!("{:?}", data);
+                                        let ipaddress = session.socket_holder.name.clone();
+                                        log::trace!("[{}]: {:?}", ipaddress, data);
                                         list_session.insert(data.reg_object, session.socket_holder);
-                                        log::trace!("No. of shared objects: {}", list_session.len());
+                                        log::trace!("[{}]: Shared objects: {:?}", ipaddress, list_session);
 
                                         tx.send(Success::new(StaticReplies::Ok.as_ref()).serialize().unwrap())
                                             .unwrap_or_else(|e| {
@@ -34,7 +35,7 @@ impl TaskManager {
                                             });
                                     }
                                     IpcMessage::Call(request) => {
-                                        log::trace!("{:?}", request);
+                                        log::trace!("[{}]: {:?}",session.socket_holder.name, request);
                                         if let Some(s) = list_session.get(request.object.as_str()) {
                                             TaskManager::handle_call_request(s.socket.clone(), request, tx).await;
                                         } else {
@@ -54,10 +55,10 @@ impl TaskManager {
                                         }
 
                                         let response = if found {
-                                            log::trace!("{:?} object are available.", request);
+                                            log::trace!("[{}]: {:?} object are available.", session.socket_holder.name, request);
                                             serde_json::to_vec(&request).unwrap()
                                         } else {
-                                            log::trace!("{:?} object not yet available.", request);
+                                            log::trace!("[{}]: {:?} object not yet available.", session.socket_holder.name, request);
                                             let list = ListObjects::new(Vec::new());
                                             serde_json::to_vec(&list).unwrap()
                                         };
@@ -70,9 +71,8 @@ impl TaskManager {
                                 }
                             },
                             Message::RemoveRegistered(session) => {
-                                log::trace!("{:?}", session);
                                 list_session.retain(|_, v| v.name != session.socket_holder.name);
-                                log::trace!("No. of shared objects: {}", list_session.len());
+                                log::trace!("[{}]: Shared objects: {:?}", session.socket_holder.name, list_session);
                             }
                         }
                     },
