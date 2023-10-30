@@ -1,9 +1,17 @@
+# An inter-process communication system that manages messages across processes via TCP stream.
+# It uses JSON format strings as a protocol when exchanging messages across processes.
+# This is also a library for the client-side processes for Rust.
+# The user application can share the object across the TCP stream.
 [package]
 name = "ipc-server"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = ["Lorenzo Leonardo <enzotechcomputersolutions@gmail.com>"]
+license = "MIT"
+description = "An inter-process communication system that manages messages across processes via TCP stream."
+repository = "https://github.com/LorenzoLeonardo/ipc-server"
+homepage = "https://github.com/LorenzoLeonardo/ipc-server"
+readme = "README.md"
 
 [dependencies]
 async-trait = "0.1"
@@ -16,7 +24,6 @@ serde_json = "1.0"
 strum = { version = "0.25", features = ["derive"] }
 strum_macros = "0.25"
 tokio = { version = "1.33", features = ["full"] }
-
 
 [lib]
 name = "ipc_client"
