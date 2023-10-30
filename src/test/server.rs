@@ -1,3 +1,4 @@
+use core::panic;
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -44,7 +45,7 @@ async fn test_server() {
             .register_object("object.name", Box::new(shared_object))
             .await
             .unwrap();
-        shared.spawn().await;
+        let _ = shared.spawn();
     });
 
     let process2 = tokio::spawn(async move {
@@ -71,11 +72,10 @@ async fn test_server() {
                     panic!("There is must be a valid response now!");
                 }
             }
-            tokio::time::sleep(Duration::from_millis(50)).await;
+            tokio::time::sleep(Duration::from_millis(1)).await;
         }
     });
 
-    process2.await.unwrap();
-    process1.abort();
+    let _ = tokio::join!(process1, process2);
     server.abort();
 }
