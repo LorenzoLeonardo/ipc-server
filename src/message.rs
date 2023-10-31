@@ -6,7 +6,7 @@ use tokio::{
     sync::{oneshot::Sender, Mutex},
 };
 
-use ipc_client::client::message::{CallObjectRequest, ListObjects};
+use ipc_client::client::message::{CallObjectRequest, ListObjects, RegisterObject};
 
 #[derive(Debug)]
 pub enum Message {
@@ -24,11 +24,6 @@ pub struct SocketHolder {
 pub struct Session {
     pub msg: IpcMessage,
     pub socket_holder: SocketHolder,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct RegisterObject {
-    pub reg_object: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

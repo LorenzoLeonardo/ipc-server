@@ -7,7 +7,7 @@ use super::error;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RegisterObject {
-    reg_object: String,
+    pub reg_object: String,
 }
 
 impl RegisterObject {
