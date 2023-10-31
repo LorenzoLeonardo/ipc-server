@@ -6,9 +6,11 @@ use tokio::{
     sync::{mpsc::UnboundedReceiver, oneshot::Sender, Mutex},
 };
 
+use ipc_client::client::message::StaticReplies;
+
 use crate::{
     error::Error,
-    message::{CallObject, IpcMessage, ListObjects, Message, StaticReplies, Success},
+    message::{CallObject, IpcMessage, ListObjects, Message, Success},
 };
 
 pub struct TaskManager;
