@@ -6,7 +6,7 @@ use tokio::{
     sync::{oneshot::Sender, Mutex},
 };
 
-use ipc_client::client::message::{CallObjectRequest, ListObjects, RegisterObject};
+use ipc_client::client::message::{CallObjectRequest, ListObjects, RegisterObject, Success};
 
 #[derive(Debug)]
 pub enum Message {
@@ -24,23 +24,6 @@ pub struct SocketHolder {
 pub struct Session {
     pub msg: IpcMessage,
     pub socket_holder: SocketHolder,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Success {
-    pub success: String,
-}
-
-impl Success {
-    pub fn new(success: &str) -> Self {
-        Self {
-            success: success.to_string(),
-        }
-    }
-
-    pub fn serialize(self) -> Result<Vec<u8>, serde_json::Error> {
-        serde_json::to_vec(&self)
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]

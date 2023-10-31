@@ -24,7 +24,19 @@ impl RegisterObject {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Success {
-    success: String,
+    pub success: String,
+}
+
+impl Success {
+    pub fn new(success: &str) -> Self {
+        Self {
+            success: success.to_string(),
+        }
+    }
+
+    pub fn serialize(self) -> Result<Vec<u8>, serde_json::Error> {
+        serde_json::to_vec(&self)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
