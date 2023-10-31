@@ -6,11 +6,11 @@ use tokio::{
     sync::{mpsc::UnboundedReceiver, oneshot::Sender, Mutex},
 };
 
-use ipc_client::client::message::{ListObjects, StaticReplies};
+use ipc_client::client::message::{CallObjectRequest, ListObjects, StaticReplies};
 
 use crate::{
     error::Error,
-    message::{CallObject, IpcMessage, Message, Success},
+    message::{IpcMessage, Message, Success},
 };
 
 pub struct TaskManager;
@@ -85,7 +85,7 @@ impl TaskManager {
 
     async fn handle_call_request(
         socket: Arc<Mutex<TcpStream>>,
-        request: CallObject,
+        request: CallObjectRequest,
         tx: Sender<Vec<u8>>,
     ) {
         let mut socket = socket.lock().await;
