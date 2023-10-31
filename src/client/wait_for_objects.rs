@@ -17,18 +17,29 @@ pub async fn wait_for_objects(list: Vec<String>) {
                     .as_slice(),
             )
             .await
-            .unwrap();
+            .unwrap_or_else(|e| {
+                log::trace!("{:?}", e);
+            });
 
-        let mut buf = [0u8; u16::MAX as usize];
-        let n = stream.read(&mut buf).await.unwrap();
-        let response: IncomingMessage = serde_json::from_slice(&buf[0..n]).unwrap();
-
-        if let IncomingMessage::WaitForObjects(v) = response {
-            if v.list.is_empty() {
-                continue;
-            } else {
-                break;
+        let mut buf = Vec::new();
+        stream.read_buf(&mut buf).await.map_or_else(
+            |e| {
+                log::error!("{:?}", e);
+            },
+            |size: usize| {
+                log::trace!("Read size: {}", size);
+            },
+        );
+        if let Ok(response) = serde_json::from_slice(buf.as_slice()) {
+            if let IncomingMessage::WaitForObjects(v) = response {
+                if v.list.is_empty() {
+                    continue;
+                } else {
+                    break;
+                }
             }
+        } else {
+            log::trace!("Serde error!");
         }
     }
 }

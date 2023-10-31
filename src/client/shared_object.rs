@@ -81,13 +81,22 @@ impl ObjectDispatcher {
         let list = self.list.clone();
         loop {
             let mut socket = socket.lock().await;
-            let mut buf = [0u8; u16::MAX as usize];
-            let n = socket.read(&mut buf).await.unwrap();
+            let mut buf = Vec::new();
+            let n = socket.read_buf(&mut buf).await.map_or_else(
+                |e| {
+                    log::error!("{:?}", e);
+                    0
+                },
+                |size: usize| {
+                    log::trace!("Read size: {}", size);
+                    size
+                },
+            );
 
             if n == 0 {
                 log::error!("Error: server connection error");
                 break;
-            } else if let Ok(msg) = serde_json::from_slice(&buf[0..n]) {
+            } else if let Ok(msg) = serde_json::from_slice(buf.as_slice()) {
                 match msg {
                     IncomingMessage::CallRequest(request) => {
                         let val = list.lock().await;
