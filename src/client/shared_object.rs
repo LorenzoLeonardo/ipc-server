@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
 
 use crate::SERVER_ADDRESS;
 
@@ -78,55 +79,57 @@ impl ObjectDispatcher {
         }
     }
 
-    pub async fn spawn(&mut self) {
+    pub async fn spawn(&mut self) -> JoinHandle<()> {
         let socket = self.socket.clone();
         let list = self.list.clone();
-        loop {
-            let mut socket = socket.lock().await;
-            let mut buf = Vec::new();
-            let n = socket.read_buf(&mut buf).await.map_or_else(
-                |e| {
-                    log::error!("{:?}", e);
-                    0
-                },
-                |size: usize| {
-                    log::trace!("Read size: {}", size);
-                    size
-                },
-            );
+        tokio::spawn(async move {
+            loop {
+                let mut socket = socket.lock().await;
+                let mut buf = Vec::new();
+                let n = socket.read_buf(&mut buf).await.map_or_else(
+                    |e| {
+                        log::error!("{:?}", e);
+                        0
+                    },
+                    |size: usize| {
+                        log::trace!("Read size: {}", size);
+                        size
+                    },
+                );
 
-            if n == 0 {
-                log::error!("Error: server connection error");
-                break;
-            } else if let Ok(msg) = serde_json::from_slice(buf.as_slice()) {
-                match msg {
-                    IncomingMessage::CallRequest(request) => {
-                        let val = list.lock().await;
-                        let response = if let Some(call) = val.get(&request.object) {
-                            call.remote_call(&request.method, request.param).await
-                        } else {
-                            OutgoingMessage::Error(message::Error::new(
-                                StaticReplies::ObjectNotFound.as_ref(),
-                            ))
-                        };
-                        socket
-                            .write_all(response.serialize().unwrap().as_slice())
-                            .await
-                            .unwrap_or_else(|e| log::error!("{:?}", e));
+                if n == 0 {
+                    log::error!("Error: server connection error");
+                    break;
+                } else if let Ok(msg) = serde_json::from_slice(buf.as_slice()) {
+                    match msg {
+                        IncomingMessage::CallRequest(request) => {
+                            let val = list.lock().await;
+                            let response = if let Some(call) = val.get(&request.object) {
+                                call.remote_call(&request.method, request.param).await
+                            } else {
+                                OutgoingMessage::Error(message::Error::new(
+                                    StaticReplies::ObjectNotFound.as_ref(),
+                                ))
+                            };
+                            socket
+                                .write_all(response.serialize().unwrap().as_slice())
+                                .await
+                                .unwrap_or_else(|e| log::error!("{:?}", e));
+                        }
+                        _ => {
+                            log::trace!("Unhandled Message: {:?}", msg);
+                        }
                     }
-                    _ => {
-                        log::trace!("Unhandled Message: {:?}", msg);
-                    }
+                } else {
+                    let response = OutgoingMessage::Error(message::Error::new(
+                        StaticReplies::SerdeParseError.as_ref(),
+                    ));
+                    socket
+                        .write_all(response.serialize().unwrap().as_slice())
+                        .await
+                        .unwrap_or_else(|e| log::error!("{:?}", e));
                 }
-            } else {
-                let response = OutgoingMessage::Error(message::Error::new(
-                    StaticReplies::SerdeParseError.as_ref(),
-                ));
-                socket
-                    .write_all(response.serialize().unwrap().as_slice())
-                    .await
-                    .unwrap_or_else(|e| log::error!("{:?}", e));
             }
-        }
+        })
     }
 }
