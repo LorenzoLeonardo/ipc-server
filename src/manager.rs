@@ -10,7 +10,7 @@ use ipc_client::client::message::{CallObjectRequest, ListObjects, StaticReplies,
 
 use crate::{
     error::Error,
-    message::{IpcMessage, Message},
+    message::{IpcMessage, Message, SocketHolder},
 };
 
 pub struct TaskManager;
@@ -39,7 +39,7 @@ impl TaskManager {
                                     IpcMessage::Call(request) => {
                                         log::trace!("[{}]: {:?}",session.socket_holder.name, request);
                                         if let Some(s) = list_session.get(request.object.as_str()) {
-                                            TaskManager::handle_call_request(s.socket.clone(), request, tx).await;
+                                            TaskManager::handle_call_request(s.socket.clone(), request, tx, &mut list_session).await;
                                         } else {
                                             tx.send(Error::new(StaticReplies::ObjectNotFound.as_ref()).serialize().unwrap())
                                                 .unwrap_or_else(|e| {
@@ -87,15 +87,24 @@ impl TaskManager {
         socket: Arc<Mutex<TcpStream>>,
         request: CallObjectRequest,
         tx: Sender<Vec<u8>>,
+        list_session: &mut HashMap<String, SocketHolder>,
     ) {
         let mut socket = socket.lock().await;
-
+        let ip_address = socket.peer_addr().unwrap().to_string();
         match request.serialize() {
             Ok(request) => {
                 // Forward this call request to the destination process
-                socket.write_all(&request).await.unwrap_or_else(|e| {
-                    log::error!("{:?}", e);
-                });
+                if let Err(e) = socket.write_all(&request).await {
+                    // If Destination process cannot be reached, better remove it from the list.
+                    list_session.retain(|_, v| v.name != ip_address);
+                    log::trace!("[{}]: Shared objects: {:?}", ip_address, list_session);
+
+                    tx.send(Error::new(e.to_string().as_str()).serialize().unwrap())
+                        .unwrap_or_else(|e| {
+                            log::error!("{:?}", e);
+                        });
+                    return;
+                }
             }
             Err(e) => {
                 tx.send(Error::new(e.to_string().as_str()).serialize().unwrap())
