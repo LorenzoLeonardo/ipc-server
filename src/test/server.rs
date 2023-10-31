@@ -1,11 +1,10 @@
-use core::panic;
 use std::collections::HashMap;
 
 use ipc_client::client::connector::Connector;
 use ipc_client::client::message::{CallObjectResponse, IncomingMessage, OutgoingMessage};
 use ipc_client::client::shared_object::{ObjectDispatcher, SharedObject};
-
 use ipc_client::client::wait_for_objects;
+
 use tokio::sync::mpsc::unbounded_channel;
 
 use async_trait::async_trait;

@@ -3,10 +3,12 @@ use tokio::{
     net::TcpStream,
 };
 
+use crate::SERVER_ADDRESS;
+
 use super::message::{IncomingMessage, ListObjects, OutgoingMessage};
 
 pub async fn wait_for_objects(list: Vec<String>) {
-    let mut stream = TcpStream::connect("127.0.0.1:1986").await.unwrap();
+    let mut stream = TcpStream::connect(SERVER_ADDRESS).await.unwrap();
 
     loop {
         stream
