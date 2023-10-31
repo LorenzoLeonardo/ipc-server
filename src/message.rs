@@ -6,6 +6,8 @@ use tokio::{
     sync::{oneshot::Sender, Mutex},
 };
 
+use ipc_client::client::message::ListObjects;
+
 #[derive(Debug)]
 pub enum Message {
     ProcessInput(Session, Sender<Vec<u8>>),
@@ -57,17 +59,6 @@ impl Success {
 
     pub fn serialize(self) -> Result<Vec<u8>, serde_json::Error> {
         serde_json::to_vec(&self)
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ListObjects {
-    pub list: Vec<String>,
-}
-
-impl ListObjects {
-    pub fn new(list: Vec<String>) -> Self {
-        Self { list }
     }
 }
 
