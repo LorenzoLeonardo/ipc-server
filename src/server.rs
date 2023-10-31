@@ -11,6 +11,8 @@ use tokio::{
     },
 };
 
+use ipc_client::SERVER_ADDRESS;
+
 use crate::error::Error;
 use crate::message::{IpcMessage, Message, Session};
 
@@ -18,9 +20,9 @@ pub struct Server;
 
 impl Server {
     pub async fn spawn(tx: UnboundedSender<Message>) {
-        let listener = TcpListener::bind("127.0.0.1:1986").await.unwrap();
+        let listener = TcpListener::bind(SERVER_ADDRESS).await.unwrap();
 
-        log::trace!("Server listening on 127.0.0.1:1986");
+        log::trace!("Server listening on {}", SERVER_ADDRESS);
         loop {
             let (socket, _) = listener.accept().await.unwrap();
             tokio::spawn(Server::handle_client(socket, tx.clone()));

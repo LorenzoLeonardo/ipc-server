@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
-
 use tokio::sync::Mutex;
 
 use super::error::Error;
 use super::message::CallObjectRequest;
+
+use crate::SERVER_ADDRESS;
 
 #[derive(Clone, Debug)]
 pub struct Connector {
@@ -15,7 +17,7 @@ pub struct Connector {
 
 impl Connector {
     pub async fn connect() -> Result<Self, Error> {
-        let stream = TcpStream::connect("127.0.0.1:1986")
+        let stream = TcpStream::connect(SERVER_ADDRESS)
             .await
             .map_err(|e| Error::Socket(e.to_string()))?;
 

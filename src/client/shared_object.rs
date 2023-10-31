@@ -5,6 +5,8 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 
+use crate::SERVER_ADDRESS;
+
 use super::error::Error;
 use super::message::{self, IncomingMessage, OutgoingMessage, RegisterObject, StaticReplies};
 
@@ -23,7 +25,7 @@ pub struct ObjectDispatcher {
 }
 impl ObjectDispatcher {
     pub async fn new() -> Result<Self, Error> {
-        let stream = TcpStream::connect("127.0.0.1:1986")
+        let stream = TcpStream::connect(SERVER_ADDRESS)
             .await
             .map_err(|e| Error::Socket(e.to_string()))?;
 
