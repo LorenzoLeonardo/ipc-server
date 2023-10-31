@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use serde_derive::{Deserialize, Serialize};
 use tokio::{
@@ -6,7 +6,7 @@ use tokio::{
     sync::{oneshot::Sender, Mutex},
 };
 
-use ipc_client::client::message::ListObjects;
+use ipc_client::client::message::{CallObjectRequest, ListObjects};
 
 #[derive(Debug)]
 pub enum Message {
@@ -32,20 +32,6 @@ pub struct RegisterObject {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct CallObject {
-    pub object: String,
-    pub method: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub param: Option<HashMap<String, String>>,
-}
-
-impl CallObject {
-    pub fn serialize(self) -> Result<Vec<u8>, serde_json::Error> {
-        serde_json::to_vec(&self)
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
 pub struct Success {
     pub success: String,
 }
@@ -67,7 +53,7 @@ impl Success {
 pub enum IpcMessage {
     None,
     Register(RegisterObject),
-    Call(CallObject),
+    Call(CallObjectRequest),
     Success(Success),
     WaitForObjects(ListObjects),
 }
