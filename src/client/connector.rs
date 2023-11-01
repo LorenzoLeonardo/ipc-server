@@ -6,7 +6,7 @@ use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 
 use super::error::Error;
-use super::message::CallObjectRequest;
+use super::message::{CallObjectRequest, JsonValue};
 
 use crate::SERVER_ADDRESS;
 
@@ -30,9 +30,12 @@ impl Connector {
         &self,
         object: &str,
         method: &str,
-        param: Option<HashMap<String, String>>,
+        param: HashMap<String, JsonValue>,
     ) -> Result<Vec<u8>, Error> {
-        let request = CallObjectRequest::new(object, method).parameters(param);
+        let mut request = CallObjectRequest::new(object, method);
+        for (key, value) in param.iter() {
+            request = request.parameter(key, value.clone());
+        }
 
         let mut socket = self.socket.lock().await;
 

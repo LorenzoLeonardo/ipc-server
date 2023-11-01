@@ -58,12 +58,25 @@ impl Display for Error {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum JsonValue {
+    Int32(i32),
+    Uint32(u32),
+    Int64(i64),
+    Uint64(u64),
+    Float(f64),
+    String(String),
+    Vec(Vec<JsonValue>),
+    HashMap(HashMap<String, JsonValue>),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CallObjectRequest {
     pub object: String,
     pub method: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub param: Option<HashMap<String, String>>,
+    pub param: Option<HashMap<String, JsonValue>>,
 }
 
 impl CallObjectRequest {
@@ -75,18 +88,15 @@ impl CallObjectRequest {
         }
     }
 
-    pub fn parameter(mut self, key: &str, value: &str) -> Self {
+    pub fn parameter(mut self, key: &str, value: JsonValue) -> Self {
         if self.param.is_none() {
             self.param = Some(HashMap::new());
         }
-        if let Some(param) = &mut self.param {
-            param.insert(key.to_owned(), value.to_owned());
-        }
-        self
-    }
 
-    pub fn parameters(mut self, param: Option<HashMap<String, String>>) -> Self {
-        self.param = param;
+        if let Some(param) = &mut self.param {
+            param.insert(key.to_owned(), value);
+        }
+
         self
     }
 
