@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use ipc_client::client::connector::Connector;
-use ipc_client::client::message::{CallObjectResponse, IncomingMessage, OutgoingMessage};
+use ipc_client::client::message::{
+    CallObjectResponse, IncomingMessage, JsonValue, OutgoingMessage,
+};
 use ipc_client::client::shared_object::{ObjectDispatcher, SharedObject};
 use ipc_client::client::wait_for_objects;
 
@@ -21,7 +23,7 @@ impl SharedObject for Mango {
     async fn remote_call(
         &self,
         method: &str,
-        param: Option<HashMap<String, String>>,
+        param: Option<HashMap<String, JsonValue>>,
     ) -> OutgoingMessage {
         log::trace!("[Mango] Method: {} Param: {:?}", method, param);
 
@@ -34,7 +36,7 @@ impl SharedObject for Apple {
     async fn remote_call(
         &self,
         method: &str,
-        param: Option<HashMap<String, String>>,
+        param: Option<HashMap<String, JsonValue>>,
     ) -> OutgoingMessage {
         log::trace!("[Apple] Method: {} Param: {:?}", method, param);
 
@@ -47,7 +49,7 @@ impl SharedObject for Orange {
     async fn remote_call(
         &self,
         method: &str,
-        param: Option<HashMap<String, String>>,
+        param: Option<HashMap<String, JsonValue>>,
     ) -> OutgoingMessage {
         log::trace!("[Orange] Method: {} Param: {:?}", method, param);
 
@@ -100,12 +102,12 @@ async fn test_server() {
         let proxy = Connector::connect().await.unwrap();
 
         let mut param = HashMap::new();
-        param.insert("provider".to_string(), "microsoft".to_string());
+        param.insert(
+            "provider".to_string(),
+            JsonValue::String("microsoft".to_string()),
+        );
 
-        let result = proxy
-            .remote_call("mango", "login", Some(param))
-            .await
-            .unwrap();
+        let result = proxy.remote_call("mango", "login", param).await.unwrap();
 
         let result: IncomingMessage = serde_json::from_slice(result.as_slice()).unwrap();
 
@@ -128,7 +130,10 @@ async fn test_server() {
 
         let proxy = Connector::connect().await.unwrap();
 
-        let result = proxy.remote_call("apple", "login", None).await.unwrap();
+        let result = proxy
+            .remote_call("apple", "login", HashMap::new())
+            .await
+            .unwrap();
 
         let result: IncomingMessage = serde_json::from_slice(result.as_slice()).unwrap();
 
@@ -151,7 +156,10 @@ async fn test_server() {
 
         let proxy = Connector::connect().await.unwrap();
 
-        let result = proxy.remote_call("orange", "login", None).await.unwrap();
+        let result = proxy
+            .remote_call("orange", "login", HashMap::new())
+            .await
+            .unwrap();
 
         let result: IncomingMessage = serde_json::from_slice(result.as_slice()).unwrap();
 

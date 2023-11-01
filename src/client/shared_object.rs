@@ -9,14 +9,16 @@ use tokio::task::JoinHandle;
 use crate::SERVER_ADDRESS;
 
 use super::error::Error;
-use super::message::{self, IncomingMessage, OutgoingMessage, RegisterObject, StaticReplies};
+use super::message::{
+    self, IncomingMessage, JsonValue, OutgoingMessage, RegisterObject, StaticReplies,
+};
 
 #[async_trait]
 pub trait SharedObject: Send + Sync + 'static {
     async fn remote_call(
         &self,
         method: &str,
-        param: Option<HashMap<String, String>>,
+        param: Option<HashMap<String, JsonValue>>,
     ) -> OutgoingMessage;
 }
 
