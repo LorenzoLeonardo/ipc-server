@@ -115,9 +115,9 @@ impl TaskManager {
             }
         }
 
-        let mut buffer = Vec::new();
+        let mut buffer = [0u8; u16::MAX as usize];
         // Read the response from the destination process
-        if let Ok(bytes_read) = socket.read_buf(&mut buffer).await {
+        if let Ok(bytes_read) = socket.read(&mut buffer).await {
             if bytes_read == 0 {
                 tx.send(
                     Error::new(StaticReplies::ClientConnectionError.as_ref())
@@ -129,7 +129,7 @@ impl TaskManager {
                 });
             } else {
                 // Forward the response of the call object back to the calling process
-                tx.send(buffer).unwrap_or_else(|e| {
+                tx.send(buffer[0..bytes_read].to_vec()).unwrap_or_else(|e| {
                     log::error!("{:?}", e);
                 });
             }
