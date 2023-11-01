@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use ipc_client::client::message::JsonValue;
 
+use serde_derive::{Deserialize, Serialize};
+
 #[test]
 fn test_json_value() {
     let val = JsonValue::Int32(-1234567890);
@@ -46,5 +48,31 @@ fn test_json_value() {
     assert_eq!(
         serde_json::to_string(&val).unwrap().as_str(),
         r#"{"test key":"test val"}"#
+    );
+}
+
+#[test]
+fn test_combo() {
+    #[derive(Serialize, Deserialize, Debug)]
+    struct Error(JsonValue);
+
+    let val = Error(JsonValue::Bool(true));
+
+    println!("{}", serde_json::to_string(&val).unwrap().as_str());
+    assert_eq!(serde_json::to_string(&val).unwrap().as_str(), "true");
+
+    #[derive(Serialize, Deserialize, Debug)]
+    struct Error2 {
+        error: JsonValue,
+    }
+
+    let val = Error2 {
+        error: JsonValue::Bool(true),
+    };
+
+    println!("{}", serde_json::to_string(&val).unwrap().as_str());
+    assert_eq!(
+        serde_json::to_string(&val).unwrap().as_str(),
+        r#"{"error":true}"#
     );
 }
