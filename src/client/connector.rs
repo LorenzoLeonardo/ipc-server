@@ -46,16 +46,16 @@ impl Connector {
             .await
             .map_err(|e| Error::Io(e.to_string()))?;
 
-        let mut buf = Vec::new();
+        let mut buf = [0u8; u16::MAX as usize];
         let n = socket
-            .read_buf(&mut buf)
+            .read(&mut buf)
             .await
             .map_err(|e| Error::Io(e.to_string()))?;
 
         if n == 0 {
             Err(Error::Io("remote connection error".to_string()))
         } else {
-            Ok(buf)
+            Ok(buf[0..n].to_vec())
         }
     }
 }

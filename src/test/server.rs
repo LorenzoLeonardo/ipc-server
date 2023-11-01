@@ -57,7 +57,9 @@ impl SharedObject for Orange {
 
 #[tokio::test]
 async fn test_server() {
-    setup_logger().unwrap();
+    setup_logger().unwrap_or_else(|e| {
+        println!("{}", e);
+    });
     let (tx, rx) = unbounded_channel();
 
     // The server
@@ -97,7 +99,13 @@ async fn test_server() {
 
         let proxy = Connector::connect().await.unwrap();
 
-        let result = proxy.remote_call("mango", "login", None).await.unwrap();
+        let mut param = HashMap::new();
+        param.insert("provider".to_string(), "microsoft".to_string());
+
+        let result = proxy
+            .remote_call("mango", "login", Some(param))
+            .await
+            .unwrap();
 
         let result: IncomingMessage = serde_json::from_slice(result.as_slice()).unwrap();
 
