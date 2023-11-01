@@ -36,7 +36,7 @@ impl Server {
         let tcp = Arc::new(Mutex::new(socket));
 
         loop {
-            let mut buffer = Vec::new();
+            let mut buffer = [0u8; u16::MAX as usize];
             // Use try_read to check if there is data available to read without blocking.
             let mut socket = tcp.lock().await;
             let ready = socket
@@ -45,12 +45,16 @@ impl Server {
                 .unwrap();
 
             if ready.is_readable() {
-                if let Ok(bytes_read) = socket.try_read_buf(&mut buffer) {
+                if let Ok(bytes_read) = socket.try_read(&mut buffer) {
                     if bytes_read == 0 {
                         // The client has closed the connection.
                         break;
                     }
-                    match serde_json::from_slice(buffer.as_slice()) {
+                    log::trace!(
+                        "SERVER RECEIVED: {}",
+                        String::from_utf8(buffer[0..bytes_read].to_vec()).unwrap()
+                    );
+                    match serde_json::from_slice(&buffer[0..bytes_read]) {
                         Ok(ipc_message) => {
                             let session: Session =
                                 Session::new(ipc_message, ip.clone(), tcp.clone());
@@ -71,6 +75,11 @@ impl Server {
                             }
                         }
                         Err(e) => {
+                            log::error!(
+                                "{}: {}",
+                                e,
+                                String::from_utf8(buffer[0..bytes_read].to_vec()).unwrap()
+                            );
                             if let Err(e) = socket
                                 .write_all(&Error::new(e.to_string().as_str()).serialize().unwrap())
                                 .await
