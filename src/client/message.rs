@@ -66,6 +66,7 @@ pub enum JsonValue {
     Int64(i64),
     Uint64(u64),
     Float(f64),
+    Bool(bool),
     String(String),
     Vec(Vec<JsonValue>),
     HashMap(HashMap<String, JsonValue>),
