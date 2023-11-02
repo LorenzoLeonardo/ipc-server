@@ -124,6 +124,42 @@ impl CallObjectResponse {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct Event {
+    pub event: String,
+    pub result: JsonValue,
+}
+
+impl Event {
+    pub fn new(event: &str, result: JsonValue) -> Self {
+        Self {
+            event: event.to_string(),
+            result,
+        }
+    }
+
+    pub fn serialize(self) -> Result<Vec<u8>, serde_json::Error> {
+        serde_json::to_vec(&self)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SubscribeToEvent {
+    pub event_name: String,
+}
+
+impl SubscribeToEvent {
+    pub fn new(event_name: &str) -> Self {
+        Self {
+            event_name: event_name.to_string(),
+        }
+    }
+
+    pub fn serialize(self) -> Result<Vec<u8>, serde_json::Error> {
+        serde_json::to_vec(&self)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ListObjects {
     pub list: Vec<String>,
 }
@@ -150,6 +186,8 @@ pub enum OutgoingMessage {
     Error(Error),
     CallResponse(CallObjectResponse),
     WaitForObjects(ListObjects),
+    SendEvent(Event),
+    SubscribeEvent(SubscribeToEvent),
 }
 
 impl OutgoingMessage {

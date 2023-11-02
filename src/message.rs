@@ -6,7 +6,7 @@ use tokio::{
     sync::{oneshot::Sender, Mutex},
 };
 
-use ipc_client::client::message::{CallObjectRequest, ListObjects, RegisterObject, Success};
+use ipc_client::client::message::{CallObjectRequest, Event, ListObjects, RegisterObject, Success};
 
 #[derive(Debug)]
 pub enum Message {
@@ -34,6 +34,7 @@ pub enum IpcMessage {
     Call(CallObjectRequest),
     Success(Success),
     WaitForObjects(ListObjects),
+    Events(Event),
 }
 
 impl Session {
