@@ -95,7 +95,7 @@ mod tests {
             hash.insert("key".into(), JsonValue::String("parameter".into()));
             assert_eq!(obj.object, "object name");
             assert_eq!(obj.method, "method name");
-            assert_eq!(obj.param, Some(hash));
+            assert_eq!(obj.param, Some(JsonValue::HashMap(hash)));
         } else {
             panic!("This must be IpcMessage::Call");
         }
