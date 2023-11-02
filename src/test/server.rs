@@ -21,40 +21,34 @@ struct Orange;
 
 #[async_trait]
 impl SharedObject for Mango {
-    async fn remote_call(
-        &self,
-        method: &str,
-        param: Option<HashMap<String, JsonValue>>,
-    ) -> OutgoingMessage {
+    async fn remote_call(&self, method: &str, param: Option<JsonValue>) -> OutgoingMessage {
         log::trace!("[Mango] Method: {} Param: {:?}", method, param);
 
-        OutgoingMessage::CallResponse(CallObjectResponse::new("This is my response from mango"))
+        OutgoingMessage::CallResponse(CallObjectResponse::new(JsonValue::String(
+            "This is my response from mango".into(),
+        )))
     }
 }
 
 #[async_trait]
 impl SharedObject for Apple {
-    async fn remote_call(
-        &self,
-        method: &str,
-        param: Option<HashMap<String, JsonValue>>,
-    ) -> OutgoingMessage {
+    async fn remote_call(&self, method: &str, param: Option<JsonValue>) -> OutgoingMessage {
         log::trace!("[Apple] Method: {} Param: {:?}", method, param);
 
-        OutgoingMessage::CallResponse(CallObjectResponse::new("This is my response from apple"))
+        OutgoingMessage::CallResponse(CallObjectResponse::new(JsonValue::String(
+            "This is my response from apple".into(),
+        )))
     }
 }
 
 #[async_trait]
 impl SharedObject for Orange {
-    async fn remote_call(
-        &self,
-        method: &str,
-        param: Option<HashMap<String, JsonValue>>,
-    ) -> OutgoingMessage {
+    async fn remote_call(&self, method: &str, param: Option<JsonValue>) -> OutgoingMessage {
         log::trace!("[Orange] Method: {} Param: {:?}", method, param);
 
-        OutgoingMessage::CallResponse(CallObjectResponse::new("This is my response from orange"))
+        OutgoingMessage::CallResponse(CallObjectResponse::new(JsonValue::String(
+            "This is my response from orange".into(),
+        )))
     }
 }
 
@@ -106,13 +100,19 @@ async fn test_server() {
             JsonValue::String("microsoft".to_string()),
         );
 
-        let result = proxy.remote_call("mango", "login", param).await.unwrap();
+        let result = proxy
+            .remote_call("mango", "login", Some(JsonValue::HashMap(param)))
+            .await
+            .unwrap();
 
         let result: IncomingMessage = serde_json::from_slice(result.as_slice()).unwrap();
 
         if let IncomingMessage::CallResponse(e) = result {
             log::trace!("[Process2] Response: {:?}", e);
-            assert_eq!(e.response, String::from("This is my response from mango"));
+            assert_eq!(
+                e.response,
+                JsonValue::String(String::from("This is my response from mango"))
+            );
         } else {
             panic!("There is must be a valid response now!");
         }
@@ -129,16 +129,16 @@ async fn test_server() {
 
         let proxy = Connector::connect().await.unwrap();
 
-        let result = proxy
-            .remote_call("apple", "login", HashMap::new())
-            .await
-            .unwrap();
+        let result = proxy.remote_call("apple", "login", None).await.unwrap();
 
         let result: IncomingMessage = serde_json::from_slice(result.as_slice()).unwrap();
 
         if let IncomingMessage::CallResponse(e) = result {
             log::trace!("[Process3] Response: {:?}", e);
-            assert_eq!(e.response, String::from("This is my response from apple"));
+            assert_eq!(
+                e.response,
+                JsonValue::String(String::from("This is my response from apple"))
+            );
         } else {
             panic!("There is must be a valid response now!");
         }
@@ -155,16 +155,16 @@ async fn test_server() {
 
         let proxy = Connector::connect().await.unwrap();
 
-        let result = proxy
-            .remote_call("orange", "login", HashMap::new())
-            .await
-            .unwrap();
+        let result = proxy.remote_call("orange", "login", None).await.unwrap();
 
         let result: IncomingMessage = serde_json::from_slice(result.as_slice()).unwrap();
 
         if let IncomingMessage::CallResponse(e) = result {
             log::trace!("[Process4] Response: {:?}", e);
-            assert_eq!(e.response, String::from("This is my response from orange"));
+            assert_eq!(
+                e.response,
+                JsonValue::String(String::from("This is my response from orange"))
+            );
         } else {
             panic!("There is must be a valid response now!");
         }

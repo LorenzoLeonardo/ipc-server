@@ -77,28 +77,16 @@ pub struct CallObjectRequest {
     pub object: String,
     pub method: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub param: Option<HashMap<String, JsonValue>>,
+    pub param: Option<JsonValue>,
 }
 
 impl CallObjectRequest {
-    pub fn new(object: &str, method: &str) -> Self {
+    pub fn new(object: &str, method: &str, param: Option<JsonValue>) -> Self {
         Self {
             object: object.to_string(),
             method: method.to_string(),
-            param: None,
+            param,
         }
-    }
-
-    pub fn parameter(mut self, key: &str, value: JsonValue) -> Self {
-        if self.param.is_none() {
-            self.param = Some(HashMap::new());
-        }
-
-        if let Some(param) = &mut self.param {
-            param.insert(key.to_owned(), value);
-        }
-
-        self
     }
 
     pub fn serialize(self) -> Result<Vec<u8>, serde_json::Error> {
@@ -108,14 +96,12 @@ impl CallObjectRequest {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CallObjectResponse {
-    pub response: String,
+    pub response: JsonValue,
 }
 
 impl CallObjectResponse {
-    pub fn new(response: &str) -> Self {
-        Self {
-            response: response.to_string(),
-        }
+    pub fn new(response: JsonValue) -> Self {
+        Self { response }
     }
 
     pub fn serialize(self) -> Result<Vec<u8>, serde_json::Error> {

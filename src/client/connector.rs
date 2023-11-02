@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::future::Future;
 use std::sync::Arc;
 
@@ -31,12 +30,9 @@ impl Connector {
         &self,
         object: &str,
         method: &str,
-        param: HashMap<String, JsonValue>,
+        param: Option<JsonValue>,
     ) -> Result<Vec<u8>, Error> {
-        let mut request = CallObjectRequest::new(object, method);
-        for (key, value) in param.iter() {
-            request = request.parameter(key, value.clone());
-        }
+        let request = CallObjectRequest::new(object, method, param);
 
         let mut socket = self.socket.lock().await;
 

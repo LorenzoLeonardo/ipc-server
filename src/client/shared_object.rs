@@ -15,11 +15,7 @@ use super::message::{
 
 #[async_trait]
 pub trait SharedObject: Send + Sync + 'static {
-    async fn remote_call(
-        &self,
-        method: &str,
-        param: Option<HashMap<String, JsonValue>>,
-    ) -> OutgoingMessage;
+    async fn remote_call(&self, method: &str, param: Option<JsonValue>) -> OutgoingMessage;
 }
 
 pub struct ObjectDispatcher {
