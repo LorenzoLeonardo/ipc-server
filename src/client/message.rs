@@ -41,14 +41,12 @@ impl Success {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Error {
-    error: String,
+    error: JsonValue,
 }
 
 impl Error {
-    pub fn new(error: &str) -> Self {
-        Self {
-            error: error.to_string(),
-        }
+    pub fn new(error: JsonValue) -> Self {
+        Self { error }
     }
 }
 
@@ -70,6 +68,22 @@ pub enum JsonValue {
     String(String),
     Vec(Vec<JsonValue>),
     HashMap(HashMap<String, JsonValue>),
+}
+
+impl Display for JsonValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            JsonValue::Int32(val) => write!(f, "{}", val),
+            JsonValue::Uint32(val) => write!(f, "{}", val),
+            JsonValue::Int64(val) => write!(f, "{}", val),
+            JsonValue::Uint64(val) => write!(f, "{}", val),
+            JsonValue::Float(val) => write!(f, "{}", val),
+            JsonValue::Bool(val) => write!(f, "{}", val),
+            JsonValue::String(val) => write!(f, "{}", val),
+            JsonValue::Vec(val) => write!(f, "{:?}", val),
+            JsonValue::HashMap(val) => write!(f, "{:?}", val),
+        }
+    }
 }
 
 impl JsonValue {
