@@ -72,6 +72,15 @@ pub enum JsonValue {
     HashMap(HashMap<String, JsonValue>),
 }
 
+impl JsonValue {
+    pub fn try_from<T: serde::Serialize>(value: T) -> Result<Self, error::Error> {
+        let val = serde_json::to_string(&value).map_err(|e| error::Error::Serde(e.to_string()))?;
+        let val: JsonValue =
+            serde_json::from_str(&val).map_err(|e| error::Error::Serde(e.to_string()))?;
+        Ok(val)
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CallObjectRequest {
     pub object: String,
