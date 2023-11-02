@@ -7,12 +7,13 @@ mod test;
 
 use std::error::Error;
 
+use log::LevelFilter;
 use server::Server;
 use tokio::sync::mpsc::unbounded_channel;
 
 use crate::manager::TaskManager;
 
-pub fn setup_logger() -> Result<(), fern::InitError> {
+pub fn setup_logger(level: LevelFilter) {
     fern::Dispatch::new()
         .format(|out, message, record| {
             out.finish(format_args!(
@@ -24,20 +25,26 @@ pub fn setup_logger() -> Result<(), fern::InitError> {
                 message
             ))
         })
-        .level(log::LevelFilter::Trace)
+        .level(level)
         .chain(std::io::stdout())
-        .apply()?;
-    Ok(())
+        .apply()
+        .unwrap_or_else(|e| {
+            eprintln!("{:?}", e);
+        });
 }
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
-    setup_logger()?;
+    setup_logger(LevelFilter::Trace);
+
+    let version = env!("CARGO_PKG_VERSION");
+    log::info!("Starting ipc-server v.{}", version);
 
     let (tx, rx) = unbounded_channel();
 
     TaskManager::spawn(rx).await;
     Server::spawn(tx).await;
 
+    log::info!("Stopping ipc-server v.{}", version);
     Ok(())
 }
