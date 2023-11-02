@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use ipc_client::client::connector::Connector;
-use ipc_client::client::message::{IncomingMessage, JsonValue};
+use ipc_client::client::message::JsonValue;
 use ipc_client::client::shared_object::{ObjectDispatcher, SharedObject};
 use ipc_client::client::wait_for_objects;
 
@@ -96,18 +96,11 @@ async fn test_server() {
             .remote_call("mango", "login", Some(JsonValue::HashMap(param)))
             .await
             .unwrap();
-
-        let result: IncomingMessage = serde_json::from_slice(result.as_slice()).unwrap();
-
-        if let IncomingMessage::CallResponse(e) = result {
-            log::trace!("[Process2] Response: {:?}", e);
-            assert_eq!(
-                e.response,
-                JsonValue::String(String::from("This is my response from mango"))
-            );
-        } else {
-            panic!("There is must be a valid response now!");
-        }
+        log::trace!("[Process 2]: {}", result);
+        assert_eq!(
+            result,
+            JsonValue::String("This is my response from mango".into())
+        );
     });
 
     let process3 = tokio::spawn(async move {
@@ -122,18 +115,11 @@ async fn test_server() {
         let proxy = Connector::connect().await.unwrap();
 
         let result = proxy.remote_call("apple", "login", None).await.unwrap();
-
-        let result: IncomingMessage = serde_json::from_slice(result.as_slice()).unwrap();
-
-        if let IncomingMessage::CallResponse(e) = result {
-            log::trace!("[Process3] Response: {:?}", e);
-            assert_eq!(
-                e.response,
-                JsonValue::String(String::from("This is my response from apple"))
-            );
-        } else {
-            panic!("There is must be a valid response now!");
-        }
+        log::trace!("[Process 3]: {}", result);
+        assert_eq!(
+            result,
+            JsonValue::String("This is my response from apple".into())
+        );
     });
 
     let process4 = tokio::spawn(async move {
@@ -148,18 +134,11 @@ async fn test_server() {
         let proxy = Connector::connect().await.unwrap();
 
         let result = proxy.remote_call("orange", "login", None).await.unwrap();
-
-        let result: IncomingMessage = serde_json::from_slice(result.as_slice()).unwrap();
-
-        if let IncomingMessage::CallResponse(e) = result {
-            log::trace!("[Process4] Response: {:?}", e);
-            assert_eq!(
-                e.response,
-                JsonValue::String(String::from("This is my response from orange"))
-            );
-        } else {
-            panic!("There is must be a valid response now!");
-        }
+        log::trace!("[Process 4]: {}", result);
+        assert_eq!(
+            result,
+            JsonValue::String("This is my response from orange".into())
+        );
     });
 
     let _ = tokio::join!(process2, process3, process4);

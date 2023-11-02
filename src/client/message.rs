@@ -217,4 +217,8 @@ pub enum StaticReplies {
     ServerConnectionError,
     #[strum(serialize = "serde parsing error")]
     SerdeParseError,
+    #[strum(serialize = "remote connection error")]
+    RemoteConnectionError,
+    #[strum(serialize = "invalid response data")]
+    InvalidResponseData,
 }
