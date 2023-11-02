@@ -6,7 +6,9 @@ use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 
 use super::error::Error;
-use super::message::{CallObjectRequest, Event, JsonValue, SubscribeToEvent};
+use super::message::{
+    CallObjectRequest, Event, IncomingMessage, JsonValue, StaticReplies, SubscribeToEvent,
+};
 
 use crate::SERVER_ADDRESS;
 
@@ -31,7 +33,7 @@ impl Connector {
         object: &str,
         method: &str,
         param: Option<JsonValue>,
-    ) -> Result<Vec<u8>, Error> {
+    ) -> Result<JsonValue, Error> {
         let request = CallObjectRequest::new(object, method, param);
 
         let mut socket = self.socket.lock().await;
@@ -53,9 +55,18 @@ impl Connector {
             .map_err(|e| Error::Io(e.to_string()))?;
 
         if n == 0 {
-            Err(Error::Io("remote connection error".to_string()))
+            Err(Error::Io(StaticReplies::RemoteConnectionError.to_string()))
         } else {
-            Ok(buf[0..n].to_vec())
+            let result: IncomingMessage =
+                serde_json::from_slice(&buf[0..n]).map_err(|e| Error::Serde(e.to_string()))?;
+            if let IncomingMessage::CallResponse(response) = result {
+                log::trace!("Response: {:?}", response);
+                Ok(response.response)
+            } else {
+                Err(Error::InvalidData(
+                    StaticReplies::InvalidResponseData.to_string(),
+                ))
+            }
         }
     }
 
