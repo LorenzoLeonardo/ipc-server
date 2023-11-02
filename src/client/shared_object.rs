@@ -6,6 +6,7 @@ use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
+use crate::client::message::CallObjectResponse;
 use crate::SERVER_ADDRESS;
 
 use super::error::Error;
@@ -15,7 +16,7 @@ use super::message::{
 
 #[async_trait]
 pub trait SharedObject: Send + Sync + 'static {
-    async fn remote_call(&self, method: &str, param: Option<JsonValue>) -> OutgoingMessage;
+    async fn remote_call(&self, method: &str, param: Option<JsonValue>) -> JsonValue;
 }
 
 pub struct ObjectDispatcher {
@@ -104,11 +105,12 @@ impl ObjectDispatcher {
                             log::trace!("CallObjectRequest: {:?}", &request);
                             let val = list.lock().await;
                             let response = if let Some(call) = val.get(&request.object) {
-                                call.remote_call(&request.method, request.param).await
+                                let result = call.remote_call(&request.method, request.param).await;
+                                OutgoingMessage::CallResponse(CallObjectResponse::new(result))
                             } else {
-                                OutgoingMessage::Error(message::Error::new(
-                                    StaticReplies::ObjectNotFound.as_ref(),
-                                ))
+                                OutgoingMessage::Error(message::Error::new(JsonValue::String(
+                                    StaticReplies::ObjectNotFound.to_string(),
+                                )))
                             };
                             socket
                                 .write_all(response.serialize().unwrap().as_slice())
@@ -120,9 +122,9 @@ impl ObjectDispatcher {
                         }
                     }
                 } else {
-                    let response = OutgoingMessage::Error(message::Error::new(
-                        StaticReplies::SerdeParseError.as_ref(),
-                    ));
+                    let response = OutgoingMessage::Error(message::Error::new(JsonValue::String(
+                        StaticReplies::SerdeParseError.to_string(),
+                    )));
                     socket
                         .write_all(response.serialize().unwrap().as_slice())
                         .await

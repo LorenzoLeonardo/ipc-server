@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 
 use ipc_client::client::connector::Connector;
-use ipc_client::client::message::{
-    CallObjectResponse, IncomingMessage, JsonValue, OutgoingMessage,
-};
+use ipc_client::client::message::{IncomingMessage, JsonValue};
 use ipc_client::client::shared_object::{ObjectDispatcher, SharedObject};
 use ipc_client::client::wait_for_objects;
 
@@ -21,34 +19,28 @@ struct Orange;
 
 #[async_trait]
 impl SharedObject for Mango {
-    async fn remote_call(&self, method: &str, param: Option<JsonValue>) -> OutgoingMessage {
+    async fn remote_call(&self, method: &str, param: Option<JsonValue>) -> JsonValue {
         log::trace!("[Mango] Method: {} Param: {:?}", method, param);
 
-        OutgoingMessage::CallResponse(CallObjectResponse::new(JsonValue::String(
-            "This is my response from mango".into(),
-        )))
+        JsonValue::String("This is my response from mango".into())
     }
 }
 
 #[async_trait]
 impl SharedObject for Apple {
-    async fn remote_call(&self, method: &str, param: Option<JsonValue>) -> OutgoingMessage {
+    async fn remote_call(&self, method: &str, param: Option<JsonValue>) -> JsonValue {
         log::trace!("[Apple] Method: {} Param: {:?}", method, param);
 
-        OutgoingMessage::CallResponse(CallObjectResponse::new(JsonValue::String(
-            "This is my response from apple".into(),
-        )))
+        JsonValue::String("This is my response from apple".into())
     }
 }
 
 #[async_trait]
 impl SharedObject for Orange {
-    async fn remote_call(&self, method: &str, param: Option<JsonValue>) -> OutgoingMessage {
+    async fn remote_call(&self, method: &str, param: Option<JsonValue>) -> JsonValue {
         log::trace!("[Orange] Method: {} Param: {:?}", method, param);
 
-        OutgoingMessage::CallResponse(CallObjectResponse::new(JsonValue::String(
-            "This is my response from orange".into(),
-        )))
+        JsonValue::String("This is my response from orange".into())
     }
 }
 
