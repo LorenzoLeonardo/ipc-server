@@ -7,6 +7,7 @@ use ipc_client::client::message::{
 use ipc_client::client::shared_object::{ObjectDispatcher, SharedObject};
 use ipc_client::client::wait_for_objects;
 
+use log::LevelFilter;
 use tokio::sync::mpsc::unbounded_channel;
 
 use async_trait::async_trait;
@@ -59,9 +60,7 @@ impl SharedObject for Orange {
 
 #[tokio::test]
 async fn test_server() {
-    setup_logger().unwrap_or_else(|e| {
-        println!("{}", e);
-    });
+    setup_logger(LevelFilter::Trace);
     let (tx, rx) = unbounded_channel();
 
     // The server

@@ -1,12 +1,12 @@
 use ipc_client::client::message::{CallObjectRequest, JsonValue};
+use log::LevelFilter;
 
 use crate::{message::IpcMessage, setup_logger};
 
 #[test]
 fn test_call_object_request() {
-    setup_logger().unwrap_or_else(|e| {
-        println!("{}", e);
-    });
+    setup_logger(LevelFilter::Trace);
+
     let obj = CallObjectRequest::new("object", "method")
         .parameter("key1", JsonValue::String("value1".into()));
 
