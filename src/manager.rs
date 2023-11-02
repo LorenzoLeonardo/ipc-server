@@ -19,6 +19,7 @@ impl TaskManager {
     pub async fn spawn(mut rx: UnboundedReceiver<Message>) {
         tokio::spawn(async move {
             let mut list_session = HashMap::new();
+            let mut list_subscriber_for_event = HashMap::new();
             loop {
                 tokio::select! {
                     Some(msg) = rx.recv() => {
@@ -69,7 +70,40 @@ impl TaskManager {
                                             log::error!("{:?}", e);
                                         });
                                     }
-                                    _ => {}
+                                    IpcMessage::AddToEventList(add_to_event) => {
+                                        let ipaddress = session.socket_holder.name.clone();
+
+                                        list_subscriber_for_event.insert(add_to_event.event_name, session.socket_holder);
+                                        log::trace!("{} has subscribe for events.", ipaddress);
+                                        log::trace!("Subscriber List: {:?}", list_subscriber_for_event);
+
+                                        tx.send(Success::new(StaticReplies::Ok.as_ref()).serialize().unwrap())
+                                        .unwrap_or_else(|e| {
+                                            log::error!("{:?}", e);
+                                        });
+                                    }
+
+                                    IpcMessage::BroadCastEvent(event) => {
+                                        log::trace!("Broadcasting this event -> {:?}", &event);
+                                        for (key, socket_holder) in list_subscriber_for_event.iter() {
+                                            if event.event == *key {
+                                                log::trace!("Broadcasting... {:?}", &event);
+                                                let socket = socket_holder.socket.clone();
+                                                let mut socket = socket.lock().await;
+
+                                                socket.write_all(event.clone().serialize().unwrap().as_slice()).await.unwrap_or_else(|e|{
+                                                    log::error!("{:?}", e);
+                                                });
+                                            }
+                                        }
+                                        tx.send(Success::new(StaticReplies::Ok.as_ref()).serialize().unwrap())
+                                        .unwrap_or_else(|e| {
+                                            log::error!("{:?}", e);
+                                        });
+                                    }
+                                    _ => {
+                                        log::trace!("Unhandled Message: {:?}", session.msg);
+                                    }
                                 }
                             },
                             Message::RemoveRegistered(session) => {

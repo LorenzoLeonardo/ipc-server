@@ -56,6 +56,7 @@ impl Server {
                     );
                     match serde_json::from_slice(&buffer[0..bytes_read]) {
                         Ok(ipc_message) => {
+                            log::trace!("IpcMessage => {:?}", &ipc_message);
                             let session: Session =
                                 Session::new(ipc_message, ip.clone(), tcp.clone());
 
