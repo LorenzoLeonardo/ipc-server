@@ -58,7 +58,7 @@ impl Display for Error {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum JsonValue {
     Int32(i32),
@@ -123,7 +123,7 @@ impl CallObjectResponse {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Event {
     pub event: String,
     pub result: JsonValue,
@@ -159,7 +159,7 @@ impl SubscribeToEvent {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct ListObjects {
     pub list: Vec<String>,
 }
