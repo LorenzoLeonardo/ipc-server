@@ -3,6 +3,8 @@ use std::{collections::HashMap, fmt::Display};
 use serde_derive::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, Display, EnumString};
 
+use super::error::Error;
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RegisterObject {
     pub reg_object: String,
@@ -34,23 +36,6 @@ impl Success {
 
     pub fn serialize(self) -> Result<Vec<u8>, serde_json::Error> {
         serde_json::to_vec(&self)
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
-pub struct Error {
-    error: JsonValue,
-}
-
-impl Error {
-    pub fn new(error: JsonValue) -> Self {
-        Self { error }
-    }
-}
-
-impl Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.error)
     }
 }
 
