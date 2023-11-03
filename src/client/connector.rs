@@ -12,12 +12,15 @@ use super::message::{
 
 use crate::SERVER_ADDRESS;
 
+/// An object that is responsible for remote object method calls,
+/// sending events and listening for incoming events.
 #[derive(Clone, Debug)]
 pub struct Connector {
     socket: Arc<Mutex<TcpStream>>,
 }
 
 impl Connector {
+    /// Connects to the IPC server.
     pub async fn connect() -> Result<Self, Error> {
         let stream = TcpStream::connect(SERVER_ADDRESS)
             .await
@@ -28,6 +31,8 @@ impl Connector {
         })
     }
 
+    /// Calls shared object methods from other processes.
+    /// It has an optional parameters, the value is in JsonValue type.
     pub async fn remote_call(
         &self,
         object: &str,
@@ -74,8 +79,9 @@ impl Connector {
         }
     }
 
-    /// Send the event to the ipc-server and let ipc-server boadcast the message
-    /// to all subscribed processes.
+    /// Sends the event to the ipc-server and let the ipc-server
+    /// boadcast the message to all subscribed processes.
+    /// Parameters in JsonValue type.
     pub async fn send_event(&self, event: &str, result: JsonValue) -> Result<(), Error> {
         let request = Event::new(event, result);
 
@@ -93,6 +99,7 @@ impl Connector {
         Ok(())
     }
 
+    /// Subscribes and listens for incoming events from other processes.
     pub async fn listen_for_event<
         F: Future<Output = Result<(), RE>> + Send,
         RE: std::error::Error + 'static + Send,
