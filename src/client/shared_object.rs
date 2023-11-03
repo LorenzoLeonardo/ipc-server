@@ -12,17 +12,25 @@ use crate::SERVER_ADDRESS;
 use super::error::Error;
 use super::message::{IncomingMessage, JsonValue, OutgoingMessage, RegisterObject, StaticReplies};
 
+/// A trait to be implemented by an application that wants to share the object
+/// to the IPC server for remote call method calls from other processes.
 #[async_trait]
 pub trait SharedObject: Send + Sync + 'static {
     async fn remote_call(&self, method: &str, param: Option<JsonValue>)
         -> Result<JsonValue, Error>;
 }
 
+/// An object that is responsible in registering the object to the IPC server,
+/// and spawning a tokio task to handling incoming remote method calls from
+/// other processes.
 pub struct ObjectDispatcher {
     socket: Arc<Mutex<TcpStream>>,
     list: Arc<Mutex<HashMap<String, Box<dyn SharedObject>>>>,
 }
+
+
 impl ObjectDispatcher {
+    /// Create a new ObjectDispatcher object and connects to the IPC server.
     pub async fn new() -> Result<Self, Error> {
         let stream = TcpStream::connect(SERVER_ADDRESS)
             .await
@@ -33,7 +41,7 @@ impl ObjectDispatcher {
             list: Arc::new(Mutex::new(HashMap::new())),
         })
     }
-
+    /// This registers the Shared Object into the IPC server.
     pub async fn register_object(
         &mut self,
         object: &str,
@@ -78,6 +86,9 @@ impl ObjectDispatcher {
         }
     }
 
+    /// This handles remote object method call from other processess.
+    /// It spawns a tokio task to handle the calls asynchronously and sends
+    /// back the response back to the remote process.
     pub async fn spawn(&mut self) -> JoinHandle<()> {
         let socket = self.socket.clone();
         let list = self.list.clone();

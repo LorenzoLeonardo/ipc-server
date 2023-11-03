@@ -7,6 +7,8 @@ use crate::SERVER_ADDRESS;
 
 use super::message::{IncomingMessage, ListObjects, OutgoingMessage};
 
+/// A function that will guarantees that the object is already available for
+/// remote method calls for synchronization purposes.
 pub async fn wait_for_objects(list: Vec<String>) {
     let mut stream = TcpStream::connect(SERVER_ADDRESS).await.unwrap();
 
