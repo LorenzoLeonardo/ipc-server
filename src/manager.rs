@@ -76,11 +76,10 @@ impl TaskManager {
                                     }
                                     IpcMessage::AddToEventList(add_to_event) => {
                                         let ipaddress = session.socket_holder.name.clone();
+                                        insert_or_update(&mut list_subscriber_for_event, add_to_event.event_name.as_str(), session.socket_holder.clone());
 
-                                        list_subscriber_for_event.insert(add_to_event.event_name, session.socket_holder);
                                         log::trace!("{} has subscribe for events.", ipaddress);
                                         log::trace!("Subscriber List: {:?}", list_subscriber_for_event);
-
                                         tx.send(Success::new(StaticReplies::Ok.as_ref()).serialize().unwrap())
                                         .unwrap_or_else(|e| {
                                             log::error!("{:?}", e);
@@ -88,13 +87,10 @@ impl TaskManager {
                                     }
 
                                     IpcMessage::BroadCastEvent(event) => {
-                                        log::trace!("Broadcasting this event -> {:?}", &event);
-                                        for (key, socket_holder) in list_subscriber_for_event.iter() {
-                                            if event.event == *key {
-                                                log::trace!("Broadcasting... {:?}", &event);
-                                                let socket = socket_holder.socket.clone();
-                                                let mut socket = socket.lock().await;
-
+                                        if let Some(list_socket_holder) = list_subscriber_for_event.get(&event.event) {
+                                            for holder in list_socket_holder {
+                                                log::trace!("Broadcasting this event to -> {}", &holder.name);
+                                                let mut socket = holder.socket.lock().await;
                                                 socket.write_all(event.clone().serialize().unwrap().as_slice()).await.unwrap_or_else(|e|{
                                                     log::error!("{:?}", e);
                                                 });
@@ -111,8 +107,14 @@ impl TaskManager {
                                 }
                             },
                             Message::RemoveRegistered(session) => {
-                                list_session.retain(|_, v| v.name != session.socket_holder.name);
+                                log::trace!("{:?}", session);
+                                let ip_address = session.socket_holder.name.clone();
+                                list_session.retain(|_, v| v.name != ip_address);
                                 log::trace!("[{}]: Shared objects: {:?}", session.socket_holder.name, list_session);
+
+                                remove_socket(&mut list_subscriber_for_event, ip_address.as_str());
+                                log::trace!("{} has unsubscribe from events.", ip_address);
+                                log::trace!("Subscriber List: {:?}", list_subscriber_for_event);
                             }
                         }
                     },
@@ -182,6 +184,33 @@ impl TaskManager {
             .unwrap_or_else(|e| {
                 log::error!("{:?}", e);
             });
+        }
+    }
+}
+
+fn insert_or_update(map: &mut HashMap<String, Vec<SocketHolder>>, key: &str, value: SocketHolder) {
+    let entry = map.entry(key.to_string());
+
+    match entry {
+        std::collections::hash_map::Entry::Occupied(mut e) => {
+            if e.get().iter().all(|x| x.name != value.name) {
+                e.get_mut().push(value);
+            }
+        }
+        std::collections::hash_map::Entry::Vacant(e) => {
+            e.insert(vec![value]);
+        }
+    }
+}
+
+fn remove_socket(map: &mut HashMap<String, Vec<SocketHolder>>, ip_address: &str) {
+    for (key, _value) in map.clone() {
+        if let Some(values) = map.get_mut(&key) {
+            values.retain(|x| x.name.as_str() != ip_address);
+
+            if values.is_empty() {
+                map.remove(&key);
+            }
         }
     }
 }
