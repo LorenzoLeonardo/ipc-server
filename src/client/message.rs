@@ -78,12 +78,20 @@ impl Display for JsonValue {
 }
 
 impl JsonValue {
-    /// Converts any struct that inherits serde::Serialize trait into
+    /// Converts from any struct T that implements serde::Serialize trait into
     /// a JsonValue type.
-    pub fn try_from<T: serde::Serialize>(value: T) -> Result<Self, Error> {
+    pub fn convert_from<T: serde::Serialize>(value: &T) -> Result<Self, Error> {
         let val = serde_json::to_string(&value)
             .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
         let val: JsonValue =
+            serde_json::from_str(&val).map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
+        Ok(val)
+    }
+    /// Converts from any JsonValue to any T that implements serde::Deserialize trait.
+    pub fn convert_to<T: serde::de::DeserializeOwned>(value: &JsonValue) -> Result<T, Error> {
+        let val = serde_json::to_string(value)
+            .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
+        let val: T =
             serde_json::from_str(&val).map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
         Ok(val)
     }
