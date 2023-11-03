@@ -10,24 +10,30 @@ use ipc_client::client::message::{
     CallObjectRequest, Event, ListObjects, RegisterObject, SubscribeToEvent, Success,
 };
 
+/// A list of Message if the message received by the Server needs some processing or
+/// need to removed a registered object.
 #[derive(Debug)]
 pub enum Message {
     ProcessInput(Session, Sender<Vec<u8>>),
     RemoveRegistered(Session),
 }
 
+/// Stores the IP Address name of the socket.
 #[derive(Debug)]
 pub struct SocketHolder {
     pub name: String,
     pub socket: Arc<Mutex<TcpStream>>,
 }
 
+/// Stores the type of IpcMessage and the socket of the calling process.
 #[derive(Debug)]
 pub struct Session {
     pub msg: IpcMessage,
     pub socket_holder: SocketHolder,
 }
 
+/// A list of possible intercepted messages by the IPC server
+/// to handle the specific tasks correctly into the TaskManager.
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(untagged)]
 pub enum IpcMessage {
@@ -41,6 +47,8 @@ pub enum IpcMessage {
 }
 
 impl Session {
+    /// Create a new Session() object to store the IpcMessage type and the socket where the
+    /// message came from.
     pub fn new(msg: IpcMessage, ipaddress: String, socket: Arc<Mutex<TcpStream>>) -> Self {
         Self {
             msg,

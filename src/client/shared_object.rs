@@ -28,7 +28,6 @@ pub struct ObjectDispatcher {
     list: Arc<Mutex<HashMap<String, Box<dyn SharedObject>>>>,
 }
 
-
 impl ObjectDispatcher {
     /// Create a new ObjectDispatcher object and connects to the IPC server.
     pub async fn new() -> Result<Self, Error> {

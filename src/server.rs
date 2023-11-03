@@ -16,9 +16,12 @@ use ipc_client::SERVER_ADDRESS;
 use crate::error::Error;
 use crate::message::{IpcMessage, Message, Session};
 
+/// This is the IPC server, it handles incoming messages from different processes
+/// and send each task to the TaskManager for proper handling.
 pub struct Server;
 
 impl Server {
+    /// Spawn the IPC server to listen concurrent incoming messages.
     pub async fn spawn(tx: UnboundedSender<Message>) {
         let listener = TcpListener::bind(SERVER_ADDRESS).await.unwrap();
 
@@ -29,6 +32,7 @@ impl Server {
         }
     }
 
+    /// Handles the received messages and pass it into TaskManager for proper handling.
     async fn handle_client(socket: TcpStream, tx: UnboundedSender<Message>) {
         let ip = socket.peer_addr().unwrap().to_string();
         log::trace!("[{}]: Client connected", ip);

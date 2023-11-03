@@ -13,9 +13,13 @@ use crate::{
     message::{IpcMessage, Message, SocketHolder},
 };
 
+/// An object that is responsible in handling request from the server.
 pub struct TaskManager;
 
 impl TaskManager {
+    /// Spawns the TaskManager in the background with tokio::select!() it handle
+    /// asynchronous request from the server and pass into different handling stations
+    /// depend on the type of Message that the server wants it to do.
     pub async fn spawn(mut rx: UnboundedReceiver<Message>) {
         tokio::spawn(async move {
             let mut list_session = HashMap::new();
@@ -117,6 +121,8 @@ impl TaskManager {
         });
     }
 
+    /// This handle remote object call method request from other process and return back to the server
+    /// for proper sending of message to what client the response is needed to.
     async fn handle_call_request(
         socket: Arc<Mutex<TcpStream>>,
         request: CallObjectRequest,
