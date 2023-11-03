@@ -76,3 +76,67 @@ fn test_combo() {
         r#"{"error":true}"#
     );
 }
+
+#[test]
+fn test_jsonvalue_to_any_type() {
+    #[derive(Serialize, Deserialize, Debug)]
+    struct Provider {
+        pub process: String,
+        pub provider: String,
+        pub authorization_endpoint: String,
+        pub token_endpoint: String,
+        pub device_auth_endpoint: String,
+        pub scopes: Vec<String>,
+        pub client_id: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub client_secret: Option<String>,
+    }
+    let mut hash = HashMap::new();
+
+    hash.insert(
+        "process".to_string(),
+        JsonValue::String("process name".to_string()),
+    );
+    hash.insert(
+        "provider".to_string(),
+        JsonValue::String("provider name".to_string()),
+    );
+    hash.insert(
+        "authorization_endpoint".to_string(),
+        JsonValue::String(
+            "https://login.microsoftonline.com/common/oauth2/v2.0/authorize".to_string(),
+        ),
+    );
+    hash.insert(
+        "token_endpoint".to_string(),
+        JsonValue::String("https://login.microsoftonline.com/common/oauth2/v2.0/token".to_string()),
+    );
+    hash.insert(
+        "device_auth_endpoint".to_string(),
+        JsonValue::String(
+            "https://login.microsoftonline.com/common/oauth2/v2.0/devicecode".to_string(),
+        ),
+    );
+    hash.insert(
+        "scopes".to_string(),
+        JsonValue::Vec(vec![
+            JsonValue::String("offline_access".to_string()),
+            JsonValue::String("https://outlook.office.com/SMTP.Send".to_string()),
+            JsonValue::String("https://outlook.office.com/User.Read".to_string()),
+        ]),
+    );
+    hash.insert(
+        "client_id".to_string(),
+        JsonValue::String("client-id-12345".to_string()),
+    );
+    hash.insert(
+        "client_secret".to_string(),
+        JsonValue::String("secret-12345".to_string()),
+    );
+
+    let expected = JsonValue::HashMap(hash);
+    let provider = JsonValue::convert_to::<Provider>(&expected).unwrap();
+    let result = JsonValue::convert_from(&provider).unwrap();
+
+    assert_eq!(expected, result);
+}
