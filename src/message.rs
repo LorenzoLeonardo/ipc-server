@@ -19,7 +19,7 @@ pub enum Message {
 }
 
 /// Stores the IP Address name of the socket.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SocketHolder {
     pub name: String,
     pub socket: Arc<Mutex<TcpStream>>,
