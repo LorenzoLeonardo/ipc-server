@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use ipc_client::client::connector::Connector;
-use ipc_client::client::message::JsonValue;
+use ipc_client::client::message::{self, JsonValue};
 use ipc_client::client::shared_object::{ObjectDispatcher, SharedObject};
 use ipc_client::client::wait_for_objects;
 
@@ -19,28 +19,42 @@ struct Orange;
 
 #[async_trait]
 impl SharedObject for Mango {
-    async fn remote_call(&self, method: &str, param: Option<JsonValue>) -> JsonValue {
+    async fn remote_call(
+        &self,
+        method: &str,
+        param: Option<JsonValue>,
+    ) -> Result<JsonValue, message::Error> {
         log::trace!("[Mango] Method: {} Param: {:?}", method, param);
 
-        JsonValue::String("This is my response from mango".into())
+        Ok(JsonValue::String("This is my response from mango".into()))
     }
 }
 
 #[async_trait]
 impl SharedObject for Apple {
-    async fn remote_call(&self, method: &str, param: Option<JsonValue>) -> JsonValue {
+    async fn remote_call(
+        &self,
+        method: &str,
+        param: Option<JsonValue>,
+    ) -> Result<JsonValue, message::Error> {
         log::trace!("[Apple] Method: {} Param: {:?}", method, param);
 
-        JsonValue::String("This is my response from apple".into())
+        Ok(JsonValue::String("This is my response from apple".into()))
     }
 }
 
 #[async_trait]
 impl SharedObject for Orange {
-    async fn remote_call(&self, method: &str, param: Option<JsonValue>) -> JsonValue {
+    async fn remote_call(
+        &self,
+        method: &str,
+        param: Option<JsonValue>,
+    ) -> Result<JsonValue, message::Error> {
         log::trace!("[Orange] Method: {} Param: {:?}", method, param);
 
-        JsonValue::String("This is my response from orange".into())
+        Err(message::Error::new(JsonValue::String(
+            "exception happend".to_string(),
+        )))
     }
 }
 
@@ -133,11 +147,14 @@ async fn test_server() {
 
         let proxy = Connector::connect().await.unwrap();
 
-        let result = proxy.remote_call("orange", "login", None).await.unwrap();
+        let result = proxy
+            .remote_call("orange", "login", None)
+            .await
+            .unwrap_err();
         log::trace!("[Process 4]: {}", result);
         assert_eq!(
             result,
-            JsonValue::String("This is my response from orange".into())
+            message::Error::new(JsonValue::String("exception happend".to_string()))
         );
     });
 

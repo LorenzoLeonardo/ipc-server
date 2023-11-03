@@ -5,7 +5,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 
-use super::error::Error;
+use super::message::Error;
 use super::message::{
     CallObjectRequest, Event, IncomingMessage, JsonValue, StaticReplies, SubscribeToEvent,
 };
@@ -21,7 +21,7 @@ impl Connector {
     pub async fn connect() -> Result<Self, Error> {
         let stream = TcpStream::connect(SERVER_ADDRESS)
             .await
-            .map_err(|e| Error::Socket(e.to_string()))?;
+            .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
 
         Ok(Self {
             socket: Arc::new(Mutex::new(stream)),
@@ -42,30 +42,34 @@ impl Connector {
             .write_all(
                 request
                     .serialize()
-                    .map_err(|e| Error::Serde(e.to_string()))?
+                    .map_err(|e| Error::new(JsonValue::String(e.to_string())))?
                     .as_slice(),
             )
             .await
-            .map_err(|e| Error::Io(e.to_string()))?;
+            .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
 
         let mut buf = [0u8; u16::MAX as usize];
         let n = socket
             .read(&mut buf)
             .await
-            .map_err(|e| Error::Io(e.to_string()))?;
+            .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
 
         if n == 0 {
-            Err(Error::Io(StaticReplies::RemoteConnectionError.to_string()))
+            Err(Error::new(JsonValue::String(
+                StaticReplies::RemoteConnectionError.to_string(),
+            )))
         } else {
-            let result: IncomingMessage =
-                serde_json::from_slice(&buf[0..n]).map_err(|e| Error::Serde(e.to_string()))?;
+            let result: IncomingMessage = serde_json::from_slice(&buf[0..n])
+                .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
             if let IncomingMessage::CallResponse(response) = result {
                 log::trace!("Response: {:?}", response);
                 Ok(response.response)
+            } else if let IncomingMessage::Error(err) = result {
+                Err(err)
             } else {
-                Err(Error::InvalidData(
+                Err(Error::new(JsonValue::String(
                     StaticReplies::InvalidResponseData.to_string(),
-                ))
+                )))
             }
         }
     }
@@ -81,11 +85,11 @@ impl Connector {
             .write_all(
                 request
                     .serialize()
-                    .map_err(|e| Error::Serde(e.to_string()))?
+                    .map_err(|e| Error::new(JsonValue::String(e.to_string())))?
                     .as_slice(),
             )
             .await
-            .map_err(|e| Error::Io(e.to_string()))?;
+            .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
         Ok(())
     }
 
@@ -106,11 +110,11 @@ impl Connector {
             .write_all(
                 request
                     .serialize()
-                    .map_err(|e| Error::Serde(e.to_string()))?
+                    .map_err(|e| Error::new(JsonValue::String(e.to_string())))?
                     .as_slice(),
             )
             .await
-            .map_err(|e| Error::Io(e.to_string()))?;
+            .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
 
         let socket = self.socket.clone();
 
@@ -121,14 +125,14 @@ impl Connector {
             let n = socket
                 .read(&mut buf)
                 .await
-                .map_err(|e| Error::Io(e.to_string()))
+                .map_err(|e| Error::new(JsonValue::String(e.to_string())))
                 .unwrap_or_else(|e| {
                     log::error!("{:?}", e);
                     0
                 });
 
             let value: JsonValue = serde_json::from_slice(&buf[0..n])
-                .map_err(|e| Error::Serde(e.to_string()))
+                .map_err(|e| Error::new(JsonValue::String(e.to_string())))
                 .unwrap_or_else(|e| {
                     log::error!("{:?}", e);
                     JsonValue::Bool(false)

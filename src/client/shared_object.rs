@@ -9,14 +9,17 @@ use tokio::task::JoinHandle;
 use crate::client::message::CallObjectResponse;
 use crate::SERVER_ADDRESS;
 
-use super::error::Error;
 use super::message::{
-    self, IncomingMessage, JsonValue, OutgoingMessage, RegisterObject, StaticReplies,
+    self, Error, IncomingMessage, JsonValue, OutgoingMessage, RegisterObject, StaticReplies,
 };
 
 #[async_trait]
 pub trait SharedObject: Send + Sync + 'static {
-    async fn remote_call(&self, method: &str, param: Option<JsonValue>) -> JsonValue;
+    async fn remote_call(
+        &self,
+        method: &str,
+        param: Option<JsonValue>,
+    ) -> Result<JsonValue, message::Error>;
 }
 
 pub struct ObjectDispatcher {
@@ -27,7 +30,7 @@ impl ObjectDispatcher {
     pub async fn new() -> Result<Self, Error> {
         let stream = TcpStream::connect(SERVER_ADDRESS)
             .await
-            .map_err(|e| Error::Socket(e.to_string()))?;
+            .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
 
         Ok(Self {
             socket: Arc::new(Mutex::new(stream)),
@@ -50,26 +53,27 @@ impl ObjectDispatcher {
         socket
             .write_all(object.as_slice())
             .await
-            .map_err(|e| Error::Io(e.to_string()))?;
+            .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
 
         let mut buf = [0u8; u16::MAX as usize];
         let n = socket
             .read(&mut buf)
             .await
-            .map_err(|e| Error::Io(e.to_string()))?;
-
+            .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
         if n == 0 {
-            Err(Error::Io(StaticReplies::ServerConnectionError.to_string()))
+            Err(Error::new(JsonValue::String(
+                StaticReplies::ServerConnectionError.to_string(),
+            )))
         } else {
-            let msg: IncomingMessage =
-                serde_json::from_slice(&buf[0..n]).map_err(|e| Error::Serde(e.to_string()))?;
+            let msg: IncomingMessage = serde_json::from_slice(&buf[0..n])
+                .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
 
             match msg {
                 IncomingMessage::Register(msg) => {
                     log::trace!("Register Object: {:?}", msg);
                     Ok(())
                 }
-                IncomingMessage::Error(msg) => Err(Error::Other(msg.to_string())),
+                IncomingMessage::Error(msg) => Err(Error::new(JsonValue::String(msg.to_string()))),
                 _ => {
                     log::trace!("Unhandled Message: {:?}", msg);
                     Ok(())
@@ -105,8 +109,12 @@ impl ObjectDispatcher {
                             log::trace!("CallObjectRequest: {:?}", &request);
                             let val = list.lock().await;
                             let response = if let Some(call) = val.get(&request.object) {
-                                let result = call.remote_call(&request.method, request.param).await;
-                                OutgoingMessage::CallResponse(CallObjectResponse::new(result))
+                                match call.remote_call(&request.method, request.param).await {
+                                    Ok(response) => OutgoingMessage::CallResponse(
+                                        CallObjectResponse::new(response),
+                                    ),
+                                    Err(err) => OutgoingMessage::Error(err),
+                                }
                             } else {
                                 OutgoingMessage::Error(message::Error::new(JsonValue::String(
                                     StaticReplies::ObjectNotFound.to_string(),

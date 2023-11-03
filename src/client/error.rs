@@ -1,4 +1,4 @@
-#[derive(Debug)]
+/*#[derive(Debug)]
 pub enum Error {
     Socket(String),
     Serde(String),
@@ -6,3 +6,4 @@ pub enum Error {
     InvalidData(String),
     Other(String),
 }
+*/
