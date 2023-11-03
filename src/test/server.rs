@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use ipc_client::client::connector::Connector;
-use ipc_client::client::message::{self, JsonValue};
+use ipc_client::client::error::Error;
+use ipc_client::client::message::JsonValue;
 use ipc_client::client::shared_object::{ObjectDispatcher, SharedObject};
 use ipc_client::client::wait_for_objects;
 
@@ -23,7 +24,7 @@ impl SharedObject for Mango {
         &self,
         method: &str,
         param: Option<JsonValue>,
-    ) -> Result<JsonValue, message::Error> {
+    ) -> Result<JsonValue, Error> {
         log::trace!("[Mango] Method: {} Param: {:?}", method, param);
 
         Ok(JsonValue::String("This is my response from mango".into()))
@@ -36,7 +37,7 @@ impl SharedObject for Apple {
         &self,
         method: &str,
         param: Option<JsonValue>,
-    ) -> Result<JsonValue, message::Error> {
+    ) -> Result<JsonValue, Error> {
         log::trace!("[Apple] Method: {} Param: {:?}", method, param);
 
         Ok(JsonValue::String("This is my response from apple".into()))
@@ -49,10 +50,10 @@ impl SharedObject for Orange {
         &self,
         method: &str,
         param: Option<JsonValue>,
-    ) -> Result<JsonValue, message::Error> {
+    ) -> Result<JsonValue, Error> {
         log::trace!("[Orange] Method: {} Param: {:?}", method, param);
 
-        Err(message::Error::new(JsonValue::String(
+        Err(Error::new(JsonValue::String(
             "exception happend".to_string(),
         )))
     }
@@ -154,7 +155,7 @@ async fn test_server() {
         log::trace!("[Process 4]: {}", result);
         assert_eq!(
             result,
-            message::Error::new(JsonValue::String("exception happend".to_string()))
+            Error::new(JsonValue::String("exception happend".to_string()))
         );
     });
 

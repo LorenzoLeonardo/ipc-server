@@ -5,7 +5,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 
-use super::message::Error;
+use super::error::Error;
 use super::message::{
     CallObjectRequest, Event, IncomingMessage, JsonValue, StaticReplies, SubscribeToEvent,
 };

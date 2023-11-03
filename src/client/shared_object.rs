@@ -9,17 +9,13 @@ use tokio::task::JoinHandle;
 use crate::client::message::CallObjectResponse;
 use crate::SERVER_ADDRESS;
 
-use super::message::{
-    self, Error, IncomingMessage, JsonValue, OutgoingMessage, RegisterObject, StaticReplies,
-};
+use super::error::Error;
+use super::message::{IncomingMessage, JsonValue, OutgoingMessage, RegisterObject, StaticReplies};
 
 #[async_trait]
 pub trait SharedObject: Send + Sync + 'static {
-    async fn remote_call(
-        &self,
-        method: &str,
-        param: Option<JsonValue>,
-    ) -> Result<JsonValue, message::Error>;
+    async fn remote_call(&self, method: &str, param: Option<JsonValue>)
+        -> Result<JsonValue, Error>;
 }
 
 pub struct ObjectDispatcher {
@@ -116,7 +112,7 @@ impl ObjectDispatcher {
                                     Err(err) => OutgoingMessage::Error(err),
                                 }
                             } else {
-                                OutgoingMessage::Error(message::Error::new(JsonValue::String(
+                                OutgoingMessage::Error(Error::new(JsonValue::String(
                                     StaticReplies::ObjectNotFound.to_string(),
                                 )))
                             };
@@ -130,7 +126,7 @@ impl ObjectDispatcher {
                         }
                     }
                 } else {
-                    let response = OutgoingMessage::Error(message::Error::new(JsonValue::String(
+                    let response = OutgoingMessage::Error(Error::new(JsonValue::String(
                         StaticReplies::SerdeParseError.to_string(),
                     )));
                     socket
