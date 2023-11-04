@@ -48,3 +48,6 @@ sequenceDiagram
     server->>proc1: broad_cast_event {"event": "result": JsonValue}
     end
 ```
+
+## Inter-processes Diagram Overview
+![image](https://github.com/LorenzoLeonardo/ipc-server/assets/97872577/7e692a29-7c47-4e16-8d5b-60ed35b1f5e2)
