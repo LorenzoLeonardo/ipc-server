@@ -5,6 +5,11 @@ It uses JSON format strings as a protocol when exchanging messages across proces
 This is also a library for the client-side processes for Rust.
 The user application can share the object across the TCP stream.
 
+
+## Inter-processes Diagram Overview
+![image](https://github.com/LorenzoLeonardo/ipc-server/assets/97872577/7e692a29-7c47-4e16-8d5b-60ed35b1f5e2)
+
+
 ## Overview of the IPC Server, registering objects and making remote calls
 ```mermaid
 sequenceDiagram
@@ -48,6 +53,3 @@ sequenceDiagram
     server->>proc1: broad_cast_event {"event": "result": JsonValue}
     end
 ```
-
-## Inter-processes Diagram Overview
-![image](https://github.com/LorenzoLeonardo/ipc-server/assets/97872577/7e692a29-7c47-4e16-8d5b-60ed35b1f5e2)
