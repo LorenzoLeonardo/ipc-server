@@ -1,6 +1,6 @@
 use std::sync::Arc;
+use std::time::Duration;
 
-use tokio::io::Interest;
 use tokio::sync::Mutex;
 use tokio::{
     io::AsyncWriteExt,
@@ -43,13 +43,9 @@ impl Server {
             let mut buffer = [0u8; u16::MAX as usize];
             // Use try_read to check if there is data available to read without blocking.
             let mut socket = tcp.lock().await;
-            let ready = socket
-                .ready(Interest::READABLE | Interest::WRITABLE)
-                .await
-                .unwrap();
 
-            if ready.is_readable() {
-                if let Ok(bytes_read) = socket.try_read(&mut buffer) {
+            match socket.try_read(&mut buffer) {
+                Ok(bytes_read) => {
                     if bytes_read == 0 {
                         // The client has closed the connection.
                         break;
@@ -94,9 +90,13 @@ impl Server {
                             }
                         }
                     }
-                } else {
-                    // No data available to read, continue other tasks or operations.
-                    tokio::task::yield_now().await;
+                }
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    tokio::time::sleep(Duration::from_nanos(1)).await;
+                }
+                Err(e) => {
+                    log::error!("{:?}", e);
+                    break;
                 }
             }
         }
