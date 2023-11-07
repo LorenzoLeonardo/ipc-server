@@ -25,6 +25,9 @@ strum = { version = "0.25", features = ["derive"] }
 strum_macros = "0.25"
 tokio = { version = "1.33", features = ["full"] }
 
+[dev-dependencies]
+test-case = "3.2"
+
 [lib]
 name = "ipc_client"
 path = "src/lib.rs"
