@@ -1,10 +1,6 @@
-use std::sync::Arc;
-use std::time::Duration;
-
-use tokio::sync::Mutex;
+use ipc_client::client::socket::Socket;
 use tokio::{
-    io::AsyncWriteExt,
-    net::{TcpListener, TcpStream},
+    net::TcpListener,
     sync::{
         mpsc::UnboundedSender,
         oneshot::{self},
@@ -28,28 +24,21 @@ impl Server {
         log::trace!("Server listening on {}", SERVER_ADDRESS);
         loop {
             let (socket, _) = listener.accept().await.unwrap();
+            let socket = Socket::new(socket).unwrap();
             tokio::spawn(Server::handle_client(socket, tx.clone()));
         }
     }
 
     /// Handles the received messages and pass it into TaskManager for proper handling.
-    async fn handle_client(socket: TcpStream, tx: UnboundedSender<Message>) {
-        let ip = socket.peer_addr().unwrap().to_string();
+    async fn handle_client(socket: Socket, tx: UnboundedSender<Message>) {
+        let ip = socket.ip_address();
         log::trace!("[{}]: Client connected", ip);
 
-        let tcp = Arc::new(Mutex::new(socket));
-
         loop {
-            let mut buffer = [0u8; u16::MAX as usize];
-            // Use try_read to check if there is data available to read without blocking.
-            let mut socket = tcp.lock().await;
+            let mut buffer = Vec::new();
 
-            match socket.try_read(&mut buffer) {
+            match socket.read(&mut buffer).await {
                 Ok(bytes_read) => {
-                    if bytes_read == 0 {
-                        // The client has closed the connection.
-                        break;
-                    }
                     log::trace!(
                         "SERVER RECEIVED: {}",
                         String::from_utf8(buffer[0..bytes_read].to_vec()).unwrap()
@@ -57,8 +46,7 @@ impl Server {
                     match serde_json::from_slice(&buffer[0..bytes_read]) {
                         Ok(ipc_message) => {
                             log::trace!("IpcMessage => {:?}", &ipc_message);
-                            let session: Session =
-                                Session::new(ipc_message, ip.clone(), tcp.clone());
+                            let session: Session = Session::new(ipc_message, socket.clone());
 
                             let (oneshot_tx, oneshot_rx) = oneshot::channel();
                             tx.send(Message::ProcessInput(session, oneshot_tx))
@@ -91,9 +79,6 @@ impl Server {
                         }
                     }
                 }
-                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    tokio::time::sleep(Duration::from_nanos(1)).await;
-                }
                 Err(e) => {
                     log::error!("{:?}", e);
                     break;
@@ -101,7 +86,7 @@ impl Server {
             }
         }
 
-        let session: Session = Session::new(IpcMessage::None, ip.clone(), tcp.clone());
+        let session: Session = Session::new(IpcMessage::None, socket.clone());
 
         tx.send(Message::RemoveRegistered(session))
             .unwrap_or_else(|e| {

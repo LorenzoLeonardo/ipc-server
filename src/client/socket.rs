@@ -43,10 +43,10 @@ impl Socket {
             let mut chunk = vec![0; self.chunk_size];
             let n = match socket.read(&mut chunk).await {
                 Ok(n) => n,
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                /*Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                     tokio::time::sleep(Duration::from_nanos(1)).await;
                     continue;
-                }
+                }*/
                 Err(e) => {
                     return Err(e);
                 }

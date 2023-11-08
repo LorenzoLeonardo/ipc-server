@@ -6,8 +6,9 @@ use tokio::{
     sync::{oneshot::Sender, Mutex},
 };
 
-use ipc_client::client::message::{
-    CallObjectRequest, Event, ListObjects, RegisterObject, SubscribeToEvent, Success,
+use ipc_client::client::{
+    message::{CallObjectRequest, Event, ListObjects, RegisterObject, SubscribeToEvent, Success},
+    socket::Socket,
 };
 
 /// A list of Message if the message received by the Server needs some processing or
@@ -29,7 +30,7 @@ pub struct SocketHolder {
 #[derive(Debug)]
 pub struct Session {
     pub msg: IpcMessage,
-    pub socket_holder: SocketHolder,
+    pub socket: Socket,
 }
 
 /// A list of possible intercepted messages by the IPC server
@@ -49,14 +50,8 @@ pub enum IpcMessage {
 impl Session {
     /// Create a new Session() object to store the IpcMessage type and the socket where the
     /// message came from.
-    pub fn new(msg: IpcMessage, ipaddress: String, socket: Arc<Mutex<TcpStream>>) -> Self {
-        Self {
-            msg,
-            socket_holder: SocketHolder {
-                name: ipaddress,
-                socket,
-            },
-        }
+    pub fn new(msg: IpcMessage, socket: Socket) -> Self {
+        Self { msg, socket }
     }
 }
 

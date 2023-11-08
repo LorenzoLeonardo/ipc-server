@@ -1,19 +1,21 @@
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::TcpStream,
-};
+use tokio::net::TcpStream;
 
 use crate::SERVER_ADDRESS;
 
-use super::message::{IncomingMessage, ListObjects, OutgoingMessage};
+use super::{
+    message::{IncomingMessage, ListObjects, OutgoingMessage},
+    socket::Socket,
+};
 
 /// A function that will guarantees that the object is already available for
 /// remote method calls for synchronization purposes.
 pub async fn wait_for_objects(list: Vec<String>) {
-    let mut stream = TcpStream::connect(SERVER_ADDRESS).await.unwrap();
+    let stream = TcpStream::connect(SERVER_ADDRESS).await.unwrap();
+
+    let socket = Socket::new(stream).unwrap();
 
     loop {
-        stream
+        socket
             .write_all(
                 OutgoingMessage::WaitForObjects(ListObjects::new(list.clone()))
                     .serialize()
@@ -25,20 +27,15 @@ pub async fn wait_for_objects(list: Vec<String>) {
                 log::trace!("{:?}", e);
             });
 
-        let mut buf = [0u8; u16::MAX as usize];
-        let n = stream.read(&mut buf).await.map_or_else(
-            |e| {
+        let mut buf = Vec::new();
+        let n = match socket.read(&mut buf).await {
+            Ok(size) => size,
+            Err(e) => {
                 log::error!("{:?}", e);
-                0
-            },
-            |size: usize| {
-                log::trace!("Read size: {}", size);
-                size
-            },
-        );
-        if n == 0 {
-            return;
-        }
+                break;
+            }
+        };
+
         if let Ok(response) = serde_json::from_slice(&buf[0..n]) {
             if let IncomingMessage::WaitForObjects(v) = response {
                 if v.list.is_empty() {

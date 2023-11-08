@@ -1,16 +1,15 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::TcpStream,
-    sync::{mpsc::UnboundedReceiver, oneshot::Sender, Mutex},
+use tokio::sync::{mpsc::UnboundedReceiver, oneshot::Sender};
+
+use ipc_client::client::{
+    message::{CallObjectRequest, ListObjects, StaticReplies, Success},
+    socket::Socket,
 };
-
-use ipc_client::client::message::{CallObjectRequest, ListObjects, StaticReplies, Success};
 
 use crate::{
     error::Error,
-    message::{IpcMessage, Message, SocketHolder},
+    message::{IpcMessage, Message},
 };
 
 /// An object that is responsible in handling request from the server.
@@ -29,11 +28,13 @@ impl TaskManager {
                     Some(msg) = rx.recv() => {
                         match msg {
                             Message::ProcessInput(session, tx) => {
+                                let ipaddress = session.socket.ip_address();
+
                                 match session.msg {
                                     IpcMessage::Register(data) => {
-                                        let ipaddress = session.socket_holder.name.clone();
+
                                         log::trace!("[{}]: {:?}", ipaddress, data);
-                                        list_session.insert(data.reg_object, session.socket_holder);
+                                        list_session.insert(data.reg_object, session.socket.clone());
                                         log::trace!("[{}]: Shared objects: {:?}", ipaddress, list_session);
 
                                         tx.send(Success::new(StaticReplies::Ok.as_ref()).serialize().unwrap())
@@ -42,9 +43,9 @@ impl TaskManager {
                                             });
                                     }
                                     IpcMessage::Call(request) => {
-                                        log::trace!("[{}]: {:?}",session.socket_holder.name, request);
+                                        log::trace!("[{}]: {:?}", ipaddress, request);
                                         if let Some(s) = list_session.get(request.object.as_str()) {
-                                            TaskManager::handle_call_request(s.socket.clone(), request, tx, &mut list_session).await;
+                                            TaskManager::handle_call_request(s.clone(), request, tx, &mut list_session).await;
                                         } else {
                                             tx.send(Error::new(StaticReplies::ObjectNotFound.as_ref()).serialize().unwrap())
                                                 .unwrap_or_else(|e| {
@@ -62,10 +63,10 @@ impl TaskManager {
                                         }
 
                                         let response = if found {
-                                            log::trace!("[{}]: {:?} object are available.", session.socket_holder.name, request);
+                                            log::trace!("[{}]: {:?} object are available.", ipaddress, request);
                                             serde_json::to_vec(&request).unwrap()
                                         } else {
-                                            log::trace!("[{}]: {:?} object not yet available.", session.socket_holder.name, request);
+                                            log::trace!("[{}]: {:?} object not yet available.", ipaddress, request);
                                             let list = ListObjects::new(Vec::new());
                                             serde_json::to_vec(&list).unwrap()
                                         };
@@ -75,8 +76,7 @@ impl TaskManager {
                                         });
                                     }
                                     IpcMessage::AddToEventList(add_to_event) => {
-                                        let ipaddress = session.socket_holder.name.clone();
-                                        insert_or_update(&mut list_subscriber_for_event, add_to_event.event_name.as_str(), session.socket_holder.clone());
+                                        insert_or_update(&mut list_subscriber_for_event, add_to_event.event_name.as_str(), session.socket.clone());
 
                                         log::trace!("{} has subscribe for events.", ipaddress);
                                         log::trace!("Subscriber List: {:?}", list_subscriber_for_event);
@@ -88,9 +88,9 @@ impl TaskManager {
 
                                     IpcMessage::BroadCastEvent(event) => {
                                         if let Some(list_socket_holder) = list_subscriber_for_event.get(&event.event) {
-                                            for holder in list_socket_holder {
-                                                log::trace!("Broadcasting this event to -> {}", &holder.name);
-                                                let mut socket = holder.socket.lock().await;
+                                            for socket in list_socket_holder {
+                                                log::trace!("Broadcasting this event to -> {}", socket.ip_address());
+
                                                 socket.write_all(event.clone().serialize().unwrap().as_slice()).await.unwrap_or_else(|e|{
                                                     log::error!("{:?}", e);
                                                 });
@@ -108,11 +108,11 @@ impl TaskManager {
                             },
                             Message::RemoveRegistered(session) => {
                                 log::trace!("{:?}", session);
-                                let ip_address = session.socket_holder.name.clone();
-                                list_session.retain(|_, v| v.name != ip_address);
-                                log::trace!("[{}]: Shared objects: {:?}", session.socket_holder.name, list_session);
+                                let ip_address = session.socket.ip_address();
+                                list_session.retain(|_, v| v.ip_address() != ip_address);
+                                log::trace!("[{}]: Shared objects: {:?}", ip_address, list_session);
 
-                                remove_socket(&mut list_subscriber_for_event, ip_address.as_str());
+                                remove_socket(&mut list_subscriber_for_event, ip_address);
                                 log::trace!("{} has unsubscribe from events.", ip_address);
                                 log::trace!("Subscriber List: {:?}", list_subscriber_for_event);
                             }
@@ -126,19 +126,18 @@ impl TaskManager {
     /// This handle remote object call method request from other process and return back to the server
     /// for proper sending of message to what client the response is needed to.
     async fn handle_call_request(
-        socket: Arc<Mutex<TcpStream>>,
+        socket: Socket,
         request: CallObjectRequest,
         tx: Sender<Vec<u8>>,
-        list_session: &mut HashMap<String, SocketHolder>,
+        list_session: &mut HashMap<String, Socket>,
     ) {
-        let mut socket = socket.lock().await;
-        let ip_address = socket.peer_addr().unwrap().to_string();
+        let ip_address = socket.ip_address();
         match request.serialize() {
             Ok(request) => {
                 // Forward this call request to the destination process
                 if let Err(e) = socket.write_all(&request).await {
                     // If Destination process cannot be reached, better remove it from the list.
-                    list_session.retain(|_, v| v.name != ip_address);
+                    list_session.retain(|_, v| v.ip_address() != ip_address);
                     log::trace!("[{}]: Shared objects: {:?}", ip_address, list_session);
 
                     tx.send(Error::new(e.to_string().as_str()).serialize().unwrap())
@@ -157,24 +156,13 @@ impl TaskManager {
             }
         }
 
-        let mut buffer = [0u8; u16::MAX as usize];
+        let mut buffer = Vec::new();
         // Read the response from the destination process
         if let Ok(bytes_read) = socket.read(&mut buffer).await {
-            if bytes_read == 0 {
-                tx.send(
-                    Error::new(StaticReplies::ClientConnectionError.as_ref())
-                        .serialize()
-                        .unwrap(),
-                )
-                .unwrap_or_else(|e| {
-                    log::error!("{:?}", e);
-                });
-            } else {
-                // Forward the response of the call object back to the calling process
-                tx.send(buffer[0..bytes_read].to_vec()).unwrap_or_else(|e| {
-                    log::error!("{:?}", e);
-                });
-            }
+            // Forward the response of the call object back to the calling process
+            tx.send(buffer[0..bytes_read].to_vec()).unwrap_or_else(|e| {
+                log::error!("{:?}", e);
+            });
         } else {
             tx.send(
                 Error::new(StaticReplies::ClientConnectionError.as_ref())
@@ -188,12 +176,12 @@ impl TaskManager {
     }
 }
 
-fn insert_or_update(map: &mut HashMap<String, Vec<SocketHolder>>, key: &str, value: SocketHolder) {
+fn insert_or_update(map: &mut HashMap<String, Vec<Socket>>, key: &str, value: Socket) {
     let entry = map.entry(key.to_string());
 
     match entry {
         std::collections::hash_map::Entry::Occupied(mut e) => {
-            if e.get().iter().all(|x| x.name != value.name) {
+            if e.get().iter().all(|x| x.ip_address() != value.ip_address()) {
                 e.get_mut().push(value);
             }
         }
@@ -203,10 +191,10 @@ fn insert_or_update(map: &mut HashMap<String, Vec<SocketHolder>>, key: &str, val
     }
 }
 
-fn remove_socket(map: &mut HashMap<String, Vec<SocketHolder>>, ip_address: &str) {
+fn remove_socket(map: &mut HashMap<String, Vec<Socket>>, ip_address: &str) {
     for (key, _value) in map.clone() {
         if let Some(values) = map.get_mut(&key) {
-            values.retain(|x| x.name.as_str() != ip_address);
+            values.retain(|x| x.ip_address() != ip_address);
 
             if values.is_empty() {
                 map.remove(&key);

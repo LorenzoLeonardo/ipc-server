@@ -1,14 +1,12 @@
 use std::future::Future;
-use std::sync::Arc;
 
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
-use tokio::sync::Mutex;
 
 use super::error::Error;
 use super::message::{
     CallObjectRequest, Event, IncomingMessage, JsonValue, StaticReplies, SubscribeToEvent,
 };
+use super::socket::Socket;
 
 use crate::SERVER_ADDRESS;
 
@@ -16,7 +14,7 @@ use crate::SERVER_ADDRESS;
 /// sending events and listening for incoming events.
 #[derive(Clone, Debug)]
 pub struct Connector {
-    socket: Arc<Mutex<TcpStream>>,
+    socket: Socket,
 }
 
 impl Connector {
@@ -25,10 +23,9 @@ impl Connector {
         let stream = TcpStream::connect(SERVER_ADDRESS)
             .await
             .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
-
-        Ok(Self {
-            socket: Arc::new(Mutex::new(stream)),
-        })
+        let socket =
+            Socket::new(stream).map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
+        Ok(Self { socket })
     }
 
     /// Calls shared object methods from other processes.
@@ -41,9 +38,7 @@ impl Connector {
     ) -> Result<JsonValue, Error> {
         let request = CallObjectRequest::new(object, method, param);
 
-        let mut socket = self.socket.lock().await;
-
-        socket
+        self.socket
             .write_all(
                 request
                     .serialize()
@@ -53,29 +48,23 @@ impl Connector {
             .await
             .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
 
-        let mut buf = [0u8; u16::MAX as usize];
-        let n = socket
-            .read(&mut buf)
-            .await
-            .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
-
-        if n == 0 {
-            Err(Error::new(JsonValue::String(
-                StaticReplies::RemoteConnectionError.to_string(),
-            )))
-        } else {
-            let result: IncomingMessage = serde_json::from_slice(&buf[0..n])
-                .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
-            if let IncomingMessage::CallResponse(response) = result {
-                log::trace!("Response: {:?}", response);
-                Ok(response.response)
-            } else if let IncomingMessage::Error(err) = result {
-                Err(err)
-            } else {
-                Err(Error::new(JsonValue::String(
-                    StaticReplies::InvalidResponseData.to_string(),
-                )))
+        let mut buf = Vec::new();
+        match self.socket.read(&mut buf).await {
+            Ok(n) => {
+                let result: IncomingMessage = serde_json::from_slice(&buf[0..n])
+                    .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
+                if let IncomingMessage::CallResponse(response) = result {
+                    log::trace!("Response: {:?}", response);
+                    Ok(response.response)
+                } else if let IncomingMessage::Error(err) = result {
+                    Err(err)
+                } else {
+                    Err(Error::new(JsonValue::String(
+                        StaticReplies::InvalidResponseData.to_string(),
+                    )))
+                }
             }
+            Err(e) => Err(Error::new(JsonValue::String(e.to_string()))),
         }
     }
 
@@ -85,9 +74,7 @@ impl Connector {
     pub async fn send_event(&self, event: &str, result: JsonValue) -> Result<(), Error> {
         let request = Event::new(event, result);
 
-        let mut socket = self.socket.lock().await;
-
-        socket
+        self.socket
             .write_all(
                 request
                     .serialize()
@@ -111,9 +98,7 @@ impl Connector {
     ) -> Result<(), Error> {
         let request = SubscribeToEvent::new(event_name);
 
-        let mut socket = self.socket.lock().await;
-
-        socket
+        self.socket
             .write_all(
                 request
                     .serialize()
@@ -126,29 +111,26 @@ impl Connector {
         let socket = self.socket.clone();
 
         tokio::spawn(async move {
-            let mut socket = socket.lock().await;
+            let mut buf = Vec::new();
+            match socket.read(&mut buf).await {
+                Ok(size) => {
+                    let value: JsonValue = serde_json::from_slice(&buf[0..size])
+                        .map_err(|e| Error::new(JsonValue::String(e.to_string())))
+                        .unwrap_or_else(|e| {
+                            log::error!("{:?}", e);
+                            JsonValue::Bool(false)
+                        });
 
-            let mut buf = [0u8; u16::MAX as usize];
-            let n = socket
-                .read(&mut buf)
-                .await
-                .map_err(|e| Error::new(JsonValue::String(e.to_string())))
-                .unwrap_or_else(|e| {
+                    log::trace!("{:?}", &value);
+                    callback(value).await.unwrap_or_else(|e| {
+                        log::error!("{:?}", e);
+                    });
+                }
+                Err(e) => {
                     log::error!("{:?}", e);
-                    0
-                });
-
-            let value: JsonValue = serde_json::from_slice(&buf[0..n])
-                .map_err(|e| Error::new(JsonValue::String(e.to_string())))
-                .unwrap_or_else(|e| {
-                    log::error!("{:?}", e);
-                    JsonValue::Bool(false)
-                });
-
-            log::trace!("{:?}", &value);
-            callback(value).await.unwrap_or_else(|e| {
-                log::error!("{:?}", e);
-            });
+                    return;
+                }
+            };
         });
         Ok(())
     }
