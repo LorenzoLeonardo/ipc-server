@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use ipc_client::client::connector::Connector;
 use ipc_client::client::error::Error;
@@ -8,6 +9,7 @@ use ipc_client::client::wait_for_objects;
 
 use log::LevelFilter;
 use tokio::sync::mpsc::unbounded_channel;
+use tokio::sync::Mutex;
 
 use async_trait::async_trait;
 
@@ -89,7 +91,8 @@ async fn test_server() {
         let _r = shared.spawn().await;
     });
 
-    // The processes that calls remote objects
+    let process2_result = Arc::new(Mutex::new(JsonValue::String(String::new())));
+    let process2_result2 = process2_result.clone();
     let process2 = tokio::spawn(async move {
         // Wait for objects before connecting.
         let list = vec![
@@ -112,12 +115,12 @@ async fn test_server() {
             .await
             .unwrap();
         log::trace!("[Process 2]: {}", result);
-        assert_eq!(
-            result,
-            JsonValue::String("This is my response from mango".into())
-        );
+        let mut actual = process2_result2.lock().await;
+        *actual = result;
     });
 
+    let process3_result = Arc::new(Mutex::new(JsonValue::String(String::new())));
+    let process3_result2 = process3_result.clone();
     let process3 = tokio::spawn(async move {
         // Wait for objects before connecting.
         let list = vec![
@@ -131,12 +134,13 @@ async fn test_server() {
 
         let result = proxy.remote_call("apple", "login", None).await.unwrap();
         log::trace!("[Process 3]: {}", result);
-        assert_eq!(
-            result,
-            JsonValue::String("This is my response from apple".into())
-        );
+
+        let mut actual = process3_result2.lock().await;
+        *actual = result;
     });
 
+    let process4_result = Arc::new(Mutex::new(Error::new(JsonValue::String(String::new()))));
+    let process4_result2 = process4_result.clone();
     let process4 = tokio::spawn(async move {
         // Wait for objects before connecting.
         let list = vec![
@@ -153,11 +157,28 @@ async fn test_server() {
             .await
             .unwrap_err();
         log::trace!("[Process 4]: {}", result);
-        assert_eq!(
-            result,
-            Error::new(JsonValue::String("exception happend".to_string()))
-        );
+
+        let mut actual = process4_result2.lock().await;
+        *actual = result;
     });
 
     let _ = tokio::join!(process2, process3, process4);
+
+    let res2 = process2_result.lock().await;
+    assert_eq!(
+        *res2,
+        JsonValue::String("This is my response from mango".into())
+    );
+
+    let res3 = process3_result.lock().await;
+    assert_eq!(
+        *res3,
+        JsonValue::String("This is my response from apple".into())
+    );
+
+    let res4 = process4_result.lock().await;
+    assert_eq!(
+        *res4,
+        Error::new(JsonValue::String("exception happend".to_string()))
+    );
 }
