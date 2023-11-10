@@ -105,7 +105,7 @@ impl TaskManager {
                                         });
                                     }
                                     _ => {
-                                        log::trace!("Unhandled Message: {:?}", session.msg);
+                                        log::error!("Unhandled Message: {:?}", session.msg);
                                     }
                                 }
                             },

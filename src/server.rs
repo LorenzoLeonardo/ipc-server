@@ -25,7 +25,7 @@ impl Server {
     pub async fn spawn(tx: UnboundedSender<Message>) {
         let listener = TcpListener::bind(SERVER_ADDRESS).await.unwrap();
 
-        log::trace!("Server listening on {}", SERVER_ADDRESS);
+        log::info!("Server listening on {}", SERVER_ADDRESS);
         loop {
             let (socket, _) = listener.accept().await.unwrap();
             tokio::spawn(Server::handle_client(socket, tx.clone()));
@@ -35,7 +35,7 @@ impl Server {
     /// Handles the received messages and pass it into TaskManager for proper handling.
     async fn handle_client(socket: TcpStream, tx: UnboundedSender<Message>) {
         let ip = socket.peer_addr().unwrap().to_string();
-        log::trace!("[{}]: Client connected", ip);
+        log::info!("[{}]: Client connected", ip);
 
         let tcp = Arc::new(Mutex::new(socket));
 
@@ -120,6 +120,6 @@ impl Server {
             .unwrap_or_else(|e| {
                 log::error!("{:?}", e);
             });
-        log::trace!("[{}]: Client disconnected", ip);
+        log::info!("[{}]: Client disconnected", ip);
     }
 }
