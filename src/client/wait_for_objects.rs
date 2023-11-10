@@ -3,7 +3,7 @@ use tokio::{
     net::TcpStream,
 };
 
-use crate::SERVER_ADDRESS;
+use crate::{MAX_DATA, SERVER_ADDRESS};
 
 use super::message::{IncomingMessage, ListObjects, OutgoingMessage};
 
@@ -25,7 +25,7 @@ pub async fn wait_for_objects(list: Vec<String>) {
                 log::trace!("{:?}", e);
             });
 
-        let mut buf = [0u8; u16::MAX as usize];
+        let mut buf = [0u8; MAX_DATA];
         let n = stream.read(&mut buf).await.map_or_else(
             |e| {
                 log::error!("{:?}", e);

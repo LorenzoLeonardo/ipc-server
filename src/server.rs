@@ -11,7 +11,7 @@ use tokio::{
     },
 };
 
-use ipc_client::SERVER_ADDRESS;
+use ipc_client::{MAX_DATA, SERVER_ADDRESS};
 
 use crate::error::Error;
 use crate::message::{IpcMessage, Message, Session};
@@ -40,7 +40,7 @@ impl Server {
         let tcp = Arc::new(Mutex::new(socket));
 
         loop {
-            let mut buffer = [0u8; u16::MAX as usize];
+            let mut buffer = [0u8; MAX_DATA];
             // Use try_read to check if there is data available to read without blocking.
             let mut socket = tcp.lock().await;
 
@@ -48,6 +48,19 @@ impl Server {
                 Ok(bytes_read) => {
                     if bytes_read == 0 {
                         // The client has closed the connection.
+                        break;
+                    } else if bytes_read >= MAX_DATA {
+                        if let Err(e) = socket
+                            .write_all(
+                                &Error::new("Data too large to handle, send it into chunks.")
+                                    .serialize()
+                                    .unwrap(),
+                            )
+                            .await
+                        {
+                            log::error!("Error writing data to client: {}", e);
+                            break;
+                        }
                         break;
                     }
                     log::trace!(

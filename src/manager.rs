@@ -6,7 +6,10 @@ use tokio::{
     sync::{mpsc::UnboundedReceiver, oneshot::Sender, Mutex},
 };
 
-use ipc_client::client::message::{CallObjectRequest, ListObjects, StaticReplies, Success};
+use ipc_client::{
+    client::message::{CallObjectRequest, ListObjects, StaticReplies, Success},
+    MAX_DATA,
+};
 
 use crate::{
     error::Error,
@@ -157,7 +160,7 @@ impl TaskManager {
             }
         }
 
-        let mut buffer = [0u8; u16::MAX as usize];
+        let mut buffer = [0u8; MAX_DATA];
         // Read the response from the destination process
         if let Ok(bytes_read) = socket.read(&mut buffer).await {
             if bytes_read == 0 {
