@@ -10,7 +10,7 @@ use super::message::{
     CallObjectRequest, Event, IncomingMessage, JsonValue, StaticReplies, SubscribeToEvent,
 };
 
-use crate::SERVER_ADDRESS;
+use crate::{MAX_DATA, SERVER_ADDRESS};
 
 /// An object that is responsible for remote object method calls,
 /// sending events and listening for incoming events.
@@ -53,7 +53,7 @@ impl Connector {
             .await
             .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
 
-        let mut buf = [0u8; u16::MAX as usize];
+        let mut buf = [0u8; MAX_DATA];
         let n = socket
             .read(&mut buf)
             .await
@@ -128,7 +128,7 @@ impl Connector {
         tokio::spawn(async move {
             let mut socket = socket.lock().await;
 
-            let mut buf = [0u8; u16::MAX as usize];
+            let mut buf = [0u8; MAX_DATA];
             let n = socket
                 .read(&mut buf)
                 .await
