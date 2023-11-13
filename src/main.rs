@@ -7,13 +7,25 @@ mod test;
 
 use std::error::Error;
 
-use log::LevelFilter;
+use ipc_client::ENV_LOGGER;
 use server::Server;
 use tokio::sync::mpsc::unbounded_channel;
 
 use crate::manager::TaskManager;
 
-pub fn setup_logger(level: LevelFilter) {
+pub fn setup_logger() {
+    let level = std::env::var(ENV_LOGGER)
+        .map(|var| match var.to_lowercase().as_str() {
+            "trace" => log::LevelFilter::Trace,
+            "debug" => log::LevelFilter::Debug,
+            "info" => log::LevelFilter::Info,
+            "warn" => log::LevelFilter::Warn,
+            "error" => log::LevelFilter::Error,
+            "off" => log::LevelFilter::Off,
+            _ => log::LevelFilter::Info,
+        })
+        .unwrap_or_else(|_| log::LevelFilter::Info);
+
     fern::Dispatch::new()
         .format(|out, message, record| {
             out.finish(format_args!(
@@ -33,15 +45,9 @@ pub fn setup_logger(level: LevelFilter) {
         });
 }
 
-#[cfg(debug_assertions)]
-const LOG_LEVEL: log::LevelFilter = log::LevelFilter::Trace;
-
-#[cfg(not(debug_assertions))]
-const LOG_LEVEL: log::LevelFilter = log::LevelFilter::Info;
-
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
-    setup_logger(LOG_LEVEL);
+    setup_logger();
 
     let version = env!("CARGO_PKG_VERSION");
     log::info!("Starting ipc-server v.{}", version);

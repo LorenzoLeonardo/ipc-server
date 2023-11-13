@@ -7,7 +7,6 @@ use ipc_client::client::message::JsonValue;
 use ipc_client::client::shared_object::{ObjectDispatcher, SharedObject};
 use ipc_client::client::wait_for_objects;
 
-use log::LevelFilter;
 use tokio::sync::mpsc::unbounded_channel;
 use tokio::sync::Mutex;
 
@@ -63,7 +62,7 @@ impl SharedObject for Orange {
 
 #[tokio::test]
 async fn test_server() {
-    setup_logger(LevelFilter::Trace);
+    setup_logger();
     let (tx, rx) = unbounded_channel();
 
     // The server
