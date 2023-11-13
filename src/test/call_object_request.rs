@@ -1,13 +1,12 @@
 use std::collections::HashMap;
 
 use ipc_client::client::message::{CallObjectRequest, JsonValue};
-use log::LevelFilter;
 
 use crate::{message::IpcMessage, setup_logger};
 
 #[test]
 fn test_call_object_request() {
-    setup_logger(LevelFilter::Trace);
+    setup_logger();
 
     let mut hash = HashMap::new();
     hash.insert("key1".to_string(), JsonValue::String("value1".into()));
