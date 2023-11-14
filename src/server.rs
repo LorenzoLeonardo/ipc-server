@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, MutexGuard};
 use tokio::{
     io::AsyncWriteExt,
     net::{TcpListener, TcpStream},
@@ -11,7 +11,7 @@ use tokio::{
     },
 };
 
-use ipc_client::{MAX_DATA, SERVER_ADDRESS};
+use ipc_client::SERVER_ADDRESS;
 
 use crate::error::Error;
 use crate::message::{IpcMessage, Message, Session};
@@ -25,7 +25,7 @@ impl Server {
     pub async fn spawn(tx: UnboundedSender<Message>) {
         let listener = TcpListener::bind(SERVER_ADDRESS).await.unwrap();
 
-        log::info!("Server listening on {}", SERVER_ADDRESS);
+        log::trace!("Server listening on {}", SERVER_ADDRESS);
         loop {
             let (socket, _) = listener.accept().await.unwrap();
             tokio::spawn(Server::handle_client(socket, tx.clone()));
@@ -40,27 +40,14 @@ impl Server {
         let tcp = Arc::new(Mutex::new(socket));
 
         loop {
-            let mut buffer = [0u8; MAX_DATA];
+            let mut buffer = Vec::new();
             // Use try_read to check if there is data available to read without blocking.
             let mut socket = tcp.lock().await;
 
-            match socket.try_read(&mut buffer) {
+            match Self::read(&socket, &mut buffer).await {
                 Ok(bytes_read) => {
                     if bytes_read == 0 {
                         // The client has closed the connection.
-                        break;
-                    } else if bytes_read >= MAX_DATA {
-                        if let Err(e) = socket
-                            .write_all(
-                                &Error::new("Data too large to handle, send it into chunks.")
-                                    .serialize()
-                                    .unwrap(),
-                            )
-                            .await
-                        {
-                            log::error!("Error writing data to client: {}", e);
-                            break;
-                        }
                         break;
                     }
                     log::trace!(
@@ -121,5 +108,35 @@ impl Server {
                 log::error!("{:?}", e);
             });
         log::info!("[{}]: Client disconnected", ip);
+    }
+
+    async fn read(
+        socket: &MutexGuard<'_, TcpStream>,
+        data: &mut Vec<u8>,
+    ) -> std::io::Result<usize> {
+        const CHUNK_SIZE: usize = 1024;
+        loop {
+            let mut buffer = [0u8; CHUNK_SIZE];
+
+            match socket.try_read(&mut buffer) {
+                Ok(bytes_read) => {
+                    if bytes_read == 0 {
+                        // The client has closed the connection.
+                        return Ok(bytes_read);
+                    }
+                    data.extend_from_slice(&buffer[0..bytes_read]);
+                    if bytes_read < CHUNK_SIZE {
+                        return Ok(data.len());
+                    }
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    return Err(e);
+                }
+                Err(e) => {
+                    log::error!("{:?}", e);
+                    return Err(e);
+                }
+            }
+        }
     }
 }
