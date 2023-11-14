@@ -3,7 +3,7 @@ use tokio::{
     net::TcpStream,
 };
 
-use crate::{MAX_DATA, SERVER_ADDRESS};
+use crate::{CHUNK_SIZE, SERVER_ADDRESS};
 
 use super::message::{IncomingMessage, ListObjects, OutgoingMessage};
 
@@ -25,8 +25,8 @@ pub async fn wait_for_objects(list: Vec<String>) {
                 log::trace!("{:?}", e);
             });
 
-        let mut buf = [0u8; MAX_DATA];
-        let n = stream.read(&mut buf).await.map_or_else(
+        let mut buf = Vec::new();
+        let n = read(&mut stream, &mut buf).await.map_or_else(
             |e| {
                 log::error!("{:?}", e);
                 0
@@ -49,6 +49,27 @@ pub async fn wait_for_objects(list: Vec<String>) {
             }
         } else {
             log::trace!("Serde error!");
+        }
+    }
+}
+
+async fn read(socket: &mut TcpStream, data: &mut Vec<u8>) -> std::io::Result<usize> {
+    loop {
+        let mut buffer = [0u8; CHUNK_SIZE];
+        match socket.read(&mut buffer).await {
+            Ok(bytes_read) => {
+                if bytes_read == 0 {
+                    return Ok(bytes_read);
+                }
+                data.extend_from_slice(&buffer[0..bytes_read]);
+
+                if bytes_read < CHUNK_SIZE {
+                    return Ok(data.len());
+                }
+            }
+            Err(e) => {
+                return Err(e);
+            }
         }
     }
 }

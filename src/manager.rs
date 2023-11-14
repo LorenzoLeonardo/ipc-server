@@ -1,14 +1,14 @@
 use std::{collections::HashMap, sync::Arc};
 
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::AsyncWriteExt,
     net::TcpStream,
     sync::{mpsc::UnboundedReceiver, oneshot::Sender, Mutex},
 };
 
-use ipc_client::{
-    client::message::{CallObjectRequest, ListObjects, StaticReplies, Success},
-    MAX_DATA,
+use ipc_client::client::{
+    connector::read,
+    message::{CallObjectRequest, ListObjects, StaticReplies, Success},
 };
 
 use crate::{
@@ -160,9 +160,9 @@ impl TaskManager {
             }
         }
 
-        let mut buffer = [0u8; MAX_DATA];
+        let mut buffer = Vec::new();
         // Read the response from the destination process
-        if let Ok(bytes_read) = socket.read(&mut buffer).await {
+        if let Ok(bytes_read) = read(&mut socket, &mut buffer).await {
             if bytes_read == 0 {
                 tx.send(
                     Error::new(StaticReplies::ClientConnectionError.as_ref())
