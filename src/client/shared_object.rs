@@ -1,14 +1,15 @@
 use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
 use crate::client::message::CallObjectResponse;
-use crate::{MAX_DATA, SERVER_ADDRESS};
+use crate::SERVER_ADDRESS;
 
+use super::connector::read;
 use super::error::Error;
 use super::message::{IncomingMessage, JsonValue, OutgoingMessage, RegisterObject, StaticReplies};
 
@@ -58,9 +59,8 @@ impl ObjectDispatcher {
             .await
             .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
 
-        let mut buf = [0u8; MAX_DATA];
-        let n = socket
-            .read(&mut buf)
+        let mut buf = Vec::new();
+        let n = read(&mut socket, &mut buf)
             .await
             .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
         if n == 0 {
@@ -94,8 +94,8 @@ impl ObjectDispatcher {
         tokio::spawn(async move {
             loop {
                 let mut socket = socket.lock().await;
-                let mut buf = [0u8; MAX_DATA];
-                let n = socket.read(&mut buf).await.map_or_else(
+                let mut buf = Vec::new();
+                let n = read(&mut socket, &mut buf).await.map_or_else(
                     |e| {
                         log::error!("{:?}", e);
                         0

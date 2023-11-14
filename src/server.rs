@@ -11,7 +11,7 @@ use tokio::{
     },
 };
 
-use ipc_client::SERVER_ADDRESS;
+use ipc_client::{CHUNK_SIZE, SERVER_ADDRESS};
 
 use crate::error::Error;
 use crate::message::{IpcMessage, Message, Session};
@@ -114,7 +114,6 @@ impl Server {
         socket: &MutexGuard<'_, TcpStream>,
         data: &mut Vec<u8>,
     ) -> std::io::Result<usize> {
-        const CHUNK_SIZE: usize = 1024;
         loop {
             let mut buffer = [0u8; CHUNK_SIZE];
 
