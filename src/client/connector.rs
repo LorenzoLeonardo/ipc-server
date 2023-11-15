@@ -125,28 +125,36 @@ impl Connector {
         let socket = self.socket.clone();
 
         tokio::spawn(async move {
-            let mut socket = socket.lock().await;
+            loop {
+                let mut socket = socket.lock().await;
 
-            let mut buf = Vec::new();
-            let n = read(&mut socket, &mut buf)
-                .await
-                .map_err(|e| Error::new(JsonValue::String(e.to_string())))
-                .unwrap_or_else(|e| {
-                    log::error!("{:?}", e);
-                    0
-                });
+                let mut buf = Vec::new();
+                let n = read(&mut socket, &mut buf)
+                    .await
+                    .map_err(|e| Error::new(JsonValue::String(e.to_string())))
+                    .unwrap_or_else(|e| {
+                        log::error!("{:?}", e);
+                        0
+                    });
 
-            let value: JsonValue = serde_json::from_slice(&buf[0..n])
-                .map_err(|e| Error::new(JsonValue::String(e.to_string())))
-                .unwrap_or_else(|e| {
-                    log::error!("{:?}", e);
-                    JsonValue::Bool(false)
-                });
+                let value: JsonValue = serde_json::from_slice(&buf[0..n])
+                    .map_err(|e| Error::new(JsonValue::String(e.to_string())))
+                    .unwrap_or_else(|e| {
+                        log::error!("{:?}", e);
+                        JsonValue::Bool(false)
+                    });
 
-            log::trace!("{:?}", &value);
-            callback(value).await.unwrap_or_else(|e| {
-                log::error!("{:?}", e);
-            });
+                log::trace!("{:?}", &value);
+                match callback(value).await {
+                    Ok(_) => {
+                        continue;
+                    }
+                    Err(err) => {
+                        log::error!("{err:?}");
+                        break;
+                    }
+                }
+            }
         });
         Ok(())
     }
