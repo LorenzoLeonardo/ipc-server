@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 use ipc_client::client::connector::Connector;
 use ipc_client::client::error::Error;
@@ -180,4 +181,80 @@ async fn test_server() {
         *res4,
         Error::new(JsonValue::String("exception happend".to_string()))
     );
+}
+
+struct TestEvent;
+
+#[async_trait]
+impl SharedObject for TestEvent {
+    async fn remote_call(
+        &self,
+        method: &str,
+        param: Option<JsonValue>,
+    ) -> Result<JsonValue, Error> {
+        log::trace!("[Event] Method: {} Param: {:?}", method, param);
+
+        Ok(JsonValue::String("This is my response from event".into()))
+    }
+}
+
+#[tokio::test]
+async fn test_event() {
+    setup_logger();
+    let (tx, rx) = unbounded_channel();
+
+    // The server
+    let _server = tokio::spawn(async move {
+        TaskManager::spawn(rx).await;
+        Server::spawn(tx).await;
+    });
+
+    // The process that shares objects
+    let process1 = tokio::spawn(async move {
+        let mut shared = ObjectDispatcher::new().await.unwrap();
+
+        shared
+            .register_object("event", Box::new(TestEvent))
+            .await
+            .unwrap();
+        let _r = shared.spawn().await;
+    });
+
+    let process2 = tokio::spawn(async move {
+        // Wait for objects before connecting.
+        let list = vec!["event".to_string()];
+        wait_for_objects::wait_for_objects(list).await;
+
+        let proxy = Connector::connect().await.unwrap();
+
+        for _n in 0..5 {
+            proxy
+                .send_event(
+                    "event",
+                    JsonValue::String("Sending you this event!!".to_string()),
+                )
+                .await
+                .unwrap();
+            tokio::time::sleep(Duration::from_millis(1)).await;
+        }
+    });
+
+    let process3 = tokio::spawn(async move {
+        // Wait for objects before connecting.
+        let list = vec!["event".to_string()];
+        wait_for_objects::wait_for_objects(list).await;
+
+        let proxy = Connector::connect().await.unwrap();
+        proxy
+            .listen_for_event("event", |param| async move { callback_test(param).await })
+            .await
+            .unwrap();
+    });
+
+    let _ = tokio::join!(process1, process2, process3);
+}
+
+async fn callback_test(param: JsonValue) -> Result<(), Error> {
+    log::trace!("I HAVE RECEIVED: {param:?}");
+    Ok(())
 }
