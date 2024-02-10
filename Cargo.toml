@@ -4,7 +4,7 @@
 # The user application can share the object across the TCP stream.
 [package]
 name = "ipc-server"
-version = "0.1.7"
+version = "0.1.8"
 edition = "2021"
 authors = ["Lorenzo Leonardo <enzotechcomputersolutions@gmail.com>"]
 license = "MIT"
