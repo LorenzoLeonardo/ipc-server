@@ -7,7 +7,7 @@ use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
 use crate::client::message::CallObjectResponse;
-use crate::SERVER_ADDRESS;
+use crate::{ENV_SERVER_ADDRESS, SERVER_ADDRESS};
 
 use super::connector::read;
 use super::error::Error;
@@ -32,7 +32,8 @@ pub struct ObjectDispatcher {
 impl ObjectDispatcher {
     /// Create a new ObjectDispatcher object and connects to the IPC server.
     pub async fn new() -> Result<Self, Error> {
-        let stream = TcpStream::connect(SERVER_ADDRESS)
+        let server_address = std::env::var(ENV_SERVER_ADDRESS).unwrap_or(SERVER_ADDRESS.to_owned());
+        let stream = TcpStream::connect(server_address)
             .await
             .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
 

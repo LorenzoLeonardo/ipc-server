@@ -11,7 +11,7 @@ use tokio::{
     },
 };
 
-use ipc_client::{CHUNK_SIZE, SERVER_ADDRESS};
+use ipc_client::{CHUNK_SIZE, ENV_SERVER_ADDRESS, SERVER_ADDRESS};
 
 use crate::error::Error;
 use crate::message::{IpcMessage, Message, Session};
@@ -23,9 +23,10 @@ pub struct Server;
 impl Server {
     /// Spawn the IPC server to listen concurrent incoming messages.
     pub async fn spawn(tx: UnboundedSender<Message>) {
-        let listener = TcpListener::bind(SERVER_ADDRESS).await.unwrap();
+        let server_address = std::env::var(ENV_SERVER_ADDRESS).unwrap_or(SERVER_ADDRESS.to_owned());
+        let listener = TcpListener::bind(server_address.clone()).await.unwrap();
 
-        log::trace!("Server listening on {}", SERVER_ADDRESS);
+        log::trace!("Server listening on {}", server_address);
         loop {
             let (socket, _) = listener.accept().await.unwrap();
             tokio::spawn(Server::handle_client(socket, tx.clone()));

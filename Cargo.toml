@@ -32,3 +32,6 @@ path = "src/lib.rs"
 [[bin]]
 name = "ipc_server"
 path = "src/main.rs"
+
+[dev-dependencies]
+ctor = "0.2.6"

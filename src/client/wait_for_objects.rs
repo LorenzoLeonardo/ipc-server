@@ -3,14 +3,15 @@ use tokio::{
     net::TcpStream,
 };
 
-use crate::{CHUNK_SIZE, SERVER_ADDRESS};
+use crate::{CHUNK_SIZE, ENV_SERVER_ADDRESS, SERVER_ADDRESS};
 
 use super::message::{IncomingMessage, ListObjects, OutgoingMessage};
 
 /// A function that will guarantees that the object is already available for
 /// remote method calls for synchronization purposes.
 pub async fn wait_for_objects(list: Vec<String>) {
-    let mut stream = TcpStream::connect(SERVER_ADDRESS).await.unwrap();
+    let server_address = std::env::var(ENV_SERVER_ADDRESS).unwrap_or(SERVER_ADDRESS.to_owned());
+    let mut stream = TcpStream::connect(server_address).await.unwrap();
 
     loop {
         stream
