@@ -94,7 +94,7 @@ impl TaskManager {
                                             for holder in list_socket_holder {
                                                 log::trace!("Broadcasting this event to -> {}", &holder.name);
                                                 let mut socket = holder.socket.lock().await;
-                                                socket.write_all(event.clone().serialize().unwrap().as_slice()).await.unwrap_or_else(|e|{
+                                                socket.write_all(event.result.serialize().unwrap().as_slice()).await.unwrap_or_else(|e|{
                                                     log::error!("{:?}", e);
                                                 });
                                             }
