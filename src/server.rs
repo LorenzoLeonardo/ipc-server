@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use ipc_client::client::message::JsonValue;
 use tokio::sync::{Mutex, MutexGuard};
 use tokio::{
     io::AsyncWriteExt,
@@ -83,7 +84,11 @@ impl Server {
                                 String::from_utf8(buffer[0..bytes_read].to_vec()).unwrap()
                             );
                             if let Err(e) = socket
-                                .write_all(&Error::new(e.to_string().as_str()).serialize().unwrap())
+                                .write_all(
+                                    &Error::new(JsonValue::String(e.to_string()))
+                                        .serialize()
+                                        .unwrap(),
+                                )
                                 .await
                             {
                                 log::error!("Error writing data to client: {}", e);

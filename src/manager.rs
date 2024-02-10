@@ -8,7 +8,7 @@ use tokio::{
 
 use ipc_client::client::{
     connector::read,
-    message::{CallObjectRequest, ListObjects, StaticReplies, Success},
+    message::{CallObjectRequest, JsonValue, ListObjects, StaticReplies, Success},
 };
 
 use crate::{
@@ -49,7 +49,7 @@ impl TaskManager {
                                         if let Some(s) = list_session.get(request.object.as_str()) {
                                             TaskManager::handle_call_request(s.socket.clone(), request, tx, &mut list_session).await;
                                         } else {
-                                            tx.send(Error::new(StaticReplies::ObjectNotFound.as_ref()).serialize().unwrap())
+                                            tx.send(Error::new(JsonValue::String(StaticReplies::ObjectNotFound.to_string())).serialize().unwrap())
                                                 .unwrap_or_else(|e| {
                                                     log::error!("{:?}", e);
                                                 });
@@ -144,18 +144,26 @@ impl TaskManager {
                     list_session.retain(|_, v| v.name != ip_address);
                     log::trace!("[{}]: Shared objects: {:?}", ip_address, list_session);
 
-                    tx.send(Error::new(e.to_string().as_str()).serialize().unwrap())
-                        .unwrap_or_else(|e| {
-                            log::error!("{:?}", e);
-                        });
+                    tx.send(
+                        Error::new(JsonValue::String(e.to_string()))
+                            .serialize()
+                            .unwrap(),
+                    )
+                    .unwrap_or_else(|e| {
+                        log::error!("{:?}", e);
+                    });
                     return;
                 }
             }
             Err(e) => {
-                tx.send(Error::new(e.to_string().as_str()).serialize().unwrap())
-                    .unwrap_or_else(|e| {
-                        log::error!("{:?}", e);
-                    });
+                tx.send(
+                    Error::new(JsonValue::String(e.to_string()))
+                        .serialize()
+                        .unwrap(),
+                )
+                .unwrap_or_else(|e| {
+                    log::error!("{:?}", e);
+                });
                 return;
             }
         }
@@ -165,9 +173,11 @@ impl TaskManager {
         if let Ok(bytes_read) = read(&mut socket, &mut buffer).await {
             if bytes_read == 0 {
                 tx.send(
-                    Error::new(StaticReplies::ClientConnectionError.as_ref())
-                        .serialize()
-                        .unwrap(),
+                    Error::new(JsonValue::String(
+                        StaticReplies::ClientConnectionError.to_string(),
+                    ))
+                    .serialize()
+                    .unwrap(),
                 )
                 .unwrap_or_else(|e| {
                     log::error!("{:?}", e);
@@ -180,9 +190,11 @@ impl TaskManager {
             }
         } else {
             tx.send(
-                Error::new(StaticReplies::ClientConnectionError.as_ref())
-                    .serialize()
-                    .unwrap(),
+                Error::new(JsonValue::String(
+                    StaticReplies::ClientConnectionError.to_string(),
+                ))
+                .serialize()
+                .unwrap(),
             )
             .unwrap_or_else(|e| {
                 log::error!("{:?}", e);
