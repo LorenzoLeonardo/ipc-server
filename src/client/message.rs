@@ -95,6 +95,10 @@ impl JsonValue {
             serde_json::from_str(&val).map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
         Ok(val)
     }
+
+    pub fn serialize(&self) -> Result<Vec<u8>, serde_json::Error> {
+        serde_json::to_vec(&self)
+    }
 }
 
 /// An object that is responsible in building a remote call method protocol in JSON stream.

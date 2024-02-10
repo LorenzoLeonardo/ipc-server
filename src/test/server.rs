@@ -223,6 +223,7 @@ impl SharedObject for TestEvent {
 
 #[tokio::test]
 async fn test_event() {
+    setup_server();
     // The process that shares objects
     let process1 = tokio::spawn(async move {
         let mut shared = ObjectDispatcher::new().await.unwrap();
@@ -260,15 +261,27 @@ async fn test_event() {
 
         let proxy = Connector::connect().await.unwrap();
         proxy
-            .listen_for_event("event", |param| async move { callback_test(param).await })
+            .listen_for_event("event", |param| async move {
+                log::trace!("I HAVE RECEIVED: {param:?}");
+
+                if param == JsonValue::String("Sending you this event!!".to_string()) {
+                    std::env::set_var("EVENT_TEST", true.to_string());
+                    panic!();
+                }
+                Ok::<(), Error>(())
+            })
             .await
             .unwrap();
     });
 
-    let _ = tokio::join!(process1, process2, process3);
-}
+    let (process1, process2, process3) = tokio::join!(process1, process2, process3);
 
-async fn callback_test(param: JsonValue) -> Result<(), Error> {
-    log::trace!("I HAVE RECEIVED: {param:?}");
-    Ok(())
+    process1.unwrap();
+    process2.unwrap();
+    process3.unwrap();
+
+    assert_eq!(
+        std::env::var("EVENT_TEST").unwrap_or(false.to_string()),
+        true.to_string()
+    );
 }
