@@ -10,7 +10,7 @@ use super::message::{
     CallObjectRequest, Event, IncomingMessage, JsonValue, StaticReplies, SubscribeToEvent,
 };
 
-use crate::{CHUNK_SIZE, SERVER_ADDRESS};
+use crate::{CHUNK_SIZE, ENV_SERVER_ADDRESS, SERVER_ADDRESS};
 
 /// An object that is responsible for remote object method calls,
 /// sending events and listening for incoming events.
@@ -22,7 +22,8 @@ pub struct Connector {
 impl Connector {
     /// Connects to the IPC server.
     pub async fn connect() -> Result<Self, Error> {
-        let stream = TcpStream::connect(SERVER_ADDRESS)
+        let server_address = std::env::var(ENV_SERVER_ADDRESS).unwrap_or(SERVER_ADDRESS.to_owned());
+        let stream = TcpStream::connect(server_address)
             .await
             .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
 

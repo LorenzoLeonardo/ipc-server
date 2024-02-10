@@ -7,9 +7,12 @@ use ipc_client::client::error::Error;
 use ipc_client::client::message::JsonValue;
 use ipc_client::client::shared_object::{ObjectDispatcher, SharedObject};
 use ipc_client::client::wait_for_objects;
+use ipc_client::ENV_SERVER_ADDRESS;
 
+use tokio::runtime::Builder;
 use tokio::sync::mpsc::unbounded_channel;
 use tokio::sync::Mutex;
+use tokio::task::LocalSet;
 
 use async_trait::async_trait;
 
@@ -61,17 +64,37 @@ impl SharedObject for Orange {
     }
 }
 
+fn find_available_port(start_port: u16) -> Option<u16> {
+    (start_port..=u16::MAX).find(|&port| std::net::TcpListener::bind(("127.0.0.1", port)).is_ok())
+}
+
+#[ctor::ctor]
+fn setup_server() {
+    setup_logger();
+    let address = format!("127.0.0.1:{}", find_available_port(3000).unwrap());
+
+    std::env::set_var(ENV_SERVER_ADDRESS, address);
+    let runtime = Builder::new_current_thread().enable_all().build().unwrap();
+
+    std::thread::spawn(move || {
+        let local = LocalSet::new();
+        local.spawn_local(async move {
+            let (tx, rx) = unbounded_channel();
+
+            // The server
+            let server = tokio::spawn(async move {
+                TaskManager::spawn(rx).await;
+                Server::spawn(tx).await;
+            });
+
+            let _ = server.await;
+        });
+        runtime.block_on(local);
+    });
+}
+
 #[tokio::test]
 async fn test_server() {
-    setup_logger();
-    let (tx, rx) = unbounded_channel();
-
-    // The server
-    let _server = tokio::spawn(async move {
-        TaskManager::spawn(rx).await;
-        Server::spawn(tx).await;
-    });
-
     // The process that shares objects
     let _process1 = tokio::spawn(async move {
         let mut shared = ObjectDispatcher::new().await.unwrap();
@@ -200,15 +223,6 @@ impl SharedObject for TestEvent {
 
 #[tokio::test]
 async fn test_event() {
-    setup_logger();
-    let (tx, rx) = unbounded_channel();
-
-    // The server
-    let _server = tokio::spawn(async move {
-        TaskManager::spawn(rx).await;
-        Server::spawn(tx).await;
-    });
-
     // The process that shares objects
     let process1 = tokio::spawn(async move {
         let mut shared = ObjectDispatcher::new().await.unwrap();
