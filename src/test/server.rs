@@ -223,7 +223,6 @@ impl SharedObject for TestEvent {
 
 #[tokio::test]
 async fn test_event() {
-    setup_server();
     // The process that shares objects
     let process1 = tokio::spawn(async move {
         let mut shared = ObjectDispatcher::new().await.unwrap();

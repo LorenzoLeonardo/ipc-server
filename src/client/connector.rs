@@ -1,13 +1,14 @@
 use std::future::Future;
 use std::sync::Arc;
 
+use serde_derive::{Deserialize, Serialize};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::{Mutex, MutexGuard};
 
 use super::error::Error;
 use super::message::{
-    CallObjectRequest, Event, IncomingMessage, JsonValue, StaticReplies, SubscribeToEvent,
+    CallObjectRequest, Event, IncomingMessage, JsonValue, StaticReplies, SubscribeToEvent, Success,
 };
 
 use crate::{CHUNK_SIZE, ENV_SERVER_ADDRESS, SERVER_ADDRESS};
@@ -138,15 +139,11 @@ impl Connector {
                         0
                     });
 
-                let value: JsonValue = serde_json::from_slice(&buf[0..n])
-                    .map_err(|e| Error::new(JsonValue::String(e.to_string())))
-                    .unwrap_or_else(|e| {
-                        log::error!("{:?}", e);
-                        JsonValue::Bool(false)
-                    });
+                let value: EventStream = serde_json::from_slice(&buf[0..n]).unwrap();
 
                 log::trace!("{:?}", &value);
-                match callback(value).await {
+
+                match callback(JsonValue::from(value)).await {
                     Ok(_) => {
                         continue;
                     }
@@ -181,6 +178,32 @@ pub async fn read(
             Err(e) => {
                 return Err(e);
             }
+        }
+    }
+}
+
+/// A list of possible outgoing messages from the client.
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(untagged)]
+pub enum EventStream {
+    Error(Error),
+    SendEvent(Event),
+    Success(Success),
+}
+
+impl EventStream {
+    /// Converts this object into JSON bytes stream.
+    pub fn serialize(self) -> Result<Vec<u8>, serde_json::Error> {
+        serde_json::to_vec(&self)
+    }
+}
+
+impl From<EventStream> for JsonValue {
+    fn from(value: EventStream) -> Self {
+        match value {
+            EventStream::Error(value) => JsonValue::convert_from(&value).unwrap(),
+            EventStream::SendEvent(value) => value.result,
+            EventStream::Success(value) => JsonValue::convert_from(&value).unwrap(),
         }
     }
 }
