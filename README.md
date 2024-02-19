@@ -27,11 +27,11 @@ sequenceDiagram
     server->>server: find_registered_objects()
     server-->>proc2: {"list":["object_name"]}
 
-    proc2->>server: remote_call {"object":"object name", "method":"method_name","param": JsonValue}
+    proc2->>server: remote_call {"object":"object name", "method":"method_name","param": JsonElem}
     server->>server: find_registered_objects()
-    server->>proc1: {"object":"object name", "method":"method_name","param":JsonValue}
-    proc1-->>server: {"response": JsonValue}
-    server-->>proc2: {"response": JsonValue}
+    server->>proc1: {"object":"object name", "method":"method_name","param":JsonElem}
+    proc1-->>server: {"response": JsonElem}
+    server-->>proc2: {"response": JsonElem}
 ```
 
 ## Overview of the IPC Server, listening for events and sending events
@@ -47,9 +47,9 @@ sequenceDiagram
     server->>server: add_subscriber
 
     proc2->>server: connect(127.0.0.1:<PORT>)
-    proc2->>server: send_event{"event":"event", "result": JsonValue}
+    proc2->>server: send_event{"event":"event", "result": JsonElem}
     loop --> broadcast to subscribers
 
-    server->>proc1: broad_cast_event {"event": "result": JsonValue}
+    server->>proc1: broad_cast_event {"event": "result": JsonElem}
     end
 ```

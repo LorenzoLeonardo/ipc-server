@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use ipc_client::client::message::JsonValue;
+use json_elem::jsonelem::JsonElem;
 use tokio::sync::{Mutex, MutexGuard};
 use tokio::{
     io::AsyncWriteExt,
@@ -85,7 +85,7 @@ impl Server {
                             );
                             if let Err(e) = socket
                                 .write_all(
-                                    &Error::new(JsonValue::String(e.to_string()))
+                                    &Error::new(JsonElem::String(e.to_string()))
                                         .serialize()
                                         .unwrap(),
                                 )

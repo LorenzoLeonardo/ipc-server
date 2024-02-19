@@ -1,15 +1,13 @@
 use std::future::Future;
 use std::sync::Arc;
 
-use serde_derive::{Deserialize, Serialize};
+use json_elem::jsonelem::JsonElem;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::{Mutex, MutexGuard};
 
 use super::error::Error;
-use super::message::{
-    CallObjectRequest, Event, IncomingMessage, JsonValue, StaticReplies, SubscribeToEvent, Success,
-};
+use super::message::{CallObjectRequest, Event, IncomingMessage, StaticReplies, SubscribeToEvent};
 
 use crate::{CHUNK_SIZE, ENV_SERVER_ADDRESS, SERVER_ADDRESS};
 
@@ -26,7 +24,7 @@ impl Connector {
         let server_address = std::env::var(ENV_SERVER_ADDRESS).unwrap_or(SERVER_ADDRESS.to_owned());
         let stream = TcpStream::connect(server_address)
             .await
-            .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
+            .map_err(|e| Error::new(JsonElem::String(e.to_string())))?;
 
         Ok(Self {
             socket: Arc::new(Mutex::new(stream)),
@@ -34,13 +32,13 @@ impl Connector {
     }
 
     /// Calls shared object methods from other processes.
-    /// It has an optional parameters, the value is in JsonValue type.
+    /// It has an optional parameters, the value is in JsonElem type.
     pub async fn remote_call(
         &self,
         object: &str,
         method: &str,
-        param: Option<JsonValue>,
-    ) -> Result<JsonValue, Error> {
+        param: Option<JsonElem>,
+    ) -> Result<JsonElem, Error> {
         let request = CallObjectRequest::new(object, method, param);
 
         let mut socket = self.socket.lock().await;
@@ -49,31 +47,31 @@ impl Connector {
             .write_all(
                 request
                     .serialize()
-                    .map_err(|e| Error::new(JsonValue::String(e.to_string())))?
+                    .map_err(|e| Error::new(JsonElem::String(e.to_string())))?
                     .as_slice(),
             )
             .await
-            .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
+            .map_err(|e| Error::new(JsonElem::String(e.to_string())))?;
 
         let mut buf = Vec::new();
         let n = read(&mut socket, &mut buf)
             .await
-            .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
+            .map_err(|e| Error::new(JsonElem::String(e.to_string())))?;
 
         if n == 0 {
-            Err(Error::new(JsonValue::String(
+            Err(Error::new(JsonElem::String(
                 StaticReplies::RemoteConnectionError.to_string(),
             )))
         } else {
             let result: IncomingMessage = serde_json::from_slice(&buf[0..n])
-                .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
+                .map_err(|e| Error::new(JsonElem::String(e.to_string())))?;
             if let IncomingMessage::CallResponse(response) = result {
                 log::trace!("Response: {:?}", response);
                 Ok(response.response)
             } else if let IncomingMessage::Error(err) = result {
                 Err(err)
             } else {
-                Err(Error::new(JsonValue::String(
+                Err(Error::new(JsonElem::String(
                     StaticReplies::InvalidResponseData.to_string(),
                 )))
             }
@@ -82,8 +80,8 @@ impl Connector {
 
     /// Sends the event to the ipc-server and let the ipc-server
     /// boadcast the message to all subscribed processes.
-    /// Parameters in JsonValue type.
-    pub async fn send_event(&self, event: &str, result: JsonValue) -> Result<(), Error> {
+    /// Parameters in JsonElem type.
+    pub async fn send_event(&self, event: &str, result: JsonElem) -> Result<(), Error> {
         let request = Event::new(event, result);
 
         let mut socket = self.socket.lock().await;
@@ -92,11 +90,11 @@ impl Connector {
             .write_all(
                 request
                     .serialize()
-                    .map_err(|e| Error::new(JsonValue::String(e.to_string())))?
+                    .map_err(|e| Error::new(JsonElem::String(e.to_string())))?
                     .as_slice(),
             )
             .await
-            .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
+            .map_err(|e| Error::new(JsonElem::String(e.to_string())))?;
         Ok(())
     }
 
@@ -104,7 +102,7 @@ impl Connector {
     pub async fn listen_for_event<
         F: Future<Output = Result<(), RE>> + Send,
         RE: std::error::Error + 'static + Send,
-        T: Fn(JsonValue) -> F + Send + Sync + 'static,
+        T: Fn(JsonElem) -> F + Send + Sync + 'static,
     >(
         &self,
         event_name: &str,
@@ -118,11 +116,11 @@ impl Connector {
             .write_all(
                 request
                     .serialize()
-                    .map_err(|e| Error::new(JsonValue::String(e.to_string())))?
+                    .map_err(|e| Error::new(JsonElem::String(e.to_string())))?
                     .as_slice(),
             )
             .await
-            .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
+            .map_err(|e| Error::new(JsonElem::String(e.to_string())))?;
 
         let socket = self.socket.clone();
 
@@ -133,17 +131,17 @@ impl Connector {
                 let mut buf = Vec::new();
                 let n = read(&mut socket, &mut buf)
                     .await
-                    .map_err(|e| Error::new(JsonValue::String(e.to_string())))
+                    .map_err(|e| Error::new(JsonElem::String(e.to_string())))
                     .unwrap_or_else(|e| {
                         log::error!("{:?}", e);
                         0
                     });
 
-                let value: EventStream = serde_json::from_slice(&buf[0..n]).unwrap();
+                let value: JsonElem = serde_json::from_slice(&buf[0..n]).unwrap();
 
                 log::trace!("{:?}", &value);
 
-                match callback(JsonValue::from(value)).await {
+                match callback(value).await {
                     Ok(_) => {
                         continue;
                     }
@@ -178,32 +176,6 @@ pub async fn read(
             Err(e) => {
                 return Err(e);
             }
-        }
-    }
-}
-
-/// A list of possible outgoing messages from the client.
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(untagged)]
-pub enum EventStream {
-    Error(Error),
-    SendEvent(Event),
-    Success(Success),
-}
-
-impl EventStream {
-    /// Converts this object into JSON bytes stream.
-    pub fn serialize(self) -> Result<Vec<u8>, serde_json::Error> {
-        serde_json::to_vec(&self)
-    }
-}
-
-impl From<EventStream> for JsonValue {
-    fn from(value: EventStream) -> Self {
-        match value {
-            EventStream::Error(value) => JsonValue::convert_from(&value).unwrap(),
-            EventStream::SendEvent(value) => value.result,
-            EventStream::Success(value) => JsonValue::convert_from(&value).unwrap(),
         }
     }
 }

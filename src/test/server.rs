@@ -4,17 +4,16 @@ use std::time::Duration;
 
 use ipc_client::client::connector::Connector;
 use ipc_client::client::error::Error;
-use ipc_client::client::message::JsonValue;
 use ipc_client::client::shared_object::{ObjectDispatcher, SharedObject};
 use ipc_client::client::wait_for_objects;
 use ipc_client::ENV_SERVER_ADDRESS;
 
+use async_trait::async_trait;
+use json_elem::jsonelem::JsonElem;
 use tokio::runtime::Builder;
 use tokio::sync::mpsc::unbounded_channel;
 use tokio::sync::Mutex;
 use tokio::task::LocalSet;
-
-use async_trait::async_trait;
 
 use crate::manager::TaskManager;
 use crate::{setup_logger, Server};
@@ -25,40 +24,28 @@ struct Orange;
 
 #[async_trait]
 impl SharedObject for Mango {
-    async fn remote_call(
-        &self,
-        method: &str,
-        param: Option<JsonValue>,
-    ) -> Result<JsonValue, Error> {
+    async fn remote_call(&self, method: &str, param: Option<JsonElem>) -> Result<JsonElem, Error> {
         log::trace!("[Mango] Method: {} Param: {:?}", method, param);
 
-        Ok(JsonValue::String("This is my response from mango".into()))
+        Ok(JsonElem::String("This is my response from mango".into()))
     }
 }
 
 #[async_trait]
 impl SharedObject for Apple {
-    async fn remote_call(
-        &self,
-        method: &str,
-        param: Option<JsonValue>,
-    ) -> Result<JsonValue, Error> {
+    async fn remote_call(&self, method: &str, param: Option<JsonElem>) -> Result<JsonElem, Error> {
         log::trace!("[Apple] Method: {} Param: {:?}", method, param);
 
-        Ok(JsonValue::String("This is my response from apple".into()))
+        Ok(JsonElem::String("This is my response from apple".into()))
     }
 }
 
 #[async_trait]
 impl SharedObject for Orange {
-    async fn remote_call(
-        &self,
-        method: &str,
-        param: Option<JsonValue>,
-    ) -> Result<JsonValue, Error> {
+    async fn remote_call(&self, method: &str, param: Option<JsonElem>) -> Result<JsonElem, Error> {
         log::trace!("[Orange] Method: {} Param: {:?}", method, param);
 
-        Err(Error::new(JsonValue::String(
+        Err(Error::new(JsonElem::String(
             "exception happend".to_string(),
         )))
     }
@@ -114,7 +101,7 @@ async fn test_server() {
         let _r = shared.spawn().await;
     });
 
-    let process2_result = Arc::new(Mutex::new(JsonValue::String(String::new())));
+    let process2_result = Arc::new(Mutex::new(JsonElem::String(String::new())));
     let process2_result2 = process2_result.clone();
     let process2 = tokio::spawn(async move {
         // Wait for objects before connecting.
@@ -130,11 +117,11 @@ async fn test_server() {
         let mut param = HashMap::new();
         param.insert(
             "provider".to_string(),
-            JsonValue::String("microsoft".to_string()),
+            JsonElem::String("microsoft".to_string()),
         );
 
         let result = proxy
-            .remote_call("mango", "login", Some(JsonValue::HashMap(param)))
+            .remote_call("mango", "login", Some(JsonElem::HashMap(param)))
             .await
             .unwrap();
         log::trace!("[Process 2]: {}", result);
@@ -142,7 +129,7 @@ async fn test_server() {
         *actual = result;
     });
 
-    let process3_result = Arc::new(Mutex::new(JsonValue::String(String::new())));
+    let process3_result = Arc::new(Mutex::new(JsonElem::String(String::new())));
     let process3_result2 = process3_result.clone();
     let process3 = tokio::spawn(async move {
         // Wait for objects before connecting.
@@ -162,7 +149,7 @@ async fn test_server() {
         *actual = result;
     });
 
-    let process4_result = Arc::new(Mutex::new(Error::new(JsonValue::String(String::new()))));
+    let process4_result = Arc::new(Mutex::new(Error::new(JsonElem::String(String::new()))));
     let process4_result2 = process4_result.clone();
     let process4 = tokio::spawn(async move {
         // Wait for objects before connecting.
@@ -190,19 +177,19 @@ async fn test_server() {
     let res2 = process2_result.lock().await;
     assert_eq!(
         *res2,
-        JsonValue::String("This is my response from mango".into())
+        JsonElem::String("This is my response from mango".into())
     );
 
     let res3 = process3_result.lock().await;
     assert_eq!(
         *res3,
-        JsonValue::String("This is my response from apple".into())
+        JsonElem::String("This is my response from apple".into())
     );
 
     let res4 = process4_result.lock().await;
     assert_eq!(
         *res4,
-        Error::new(JsonValue::String("exception happend".to_string()))
+        Error::new(JsonElem::String("exception happend".to_string()))
     );
 }
 
@@ -210,14 +197,10 @@ struct TestEvent;
 
 #[async_trait]
 impl SharedObject for TestEvent {
-    async fn remote_call(
-        &self,
-        method: &str,
-        param: Option<JsonValue>,
-    ) -> Result<JsonValue, Error> {
+    async fn remote_call(&self, method: &str, param: Option<JsonElem>) -> Result<JsonElem, Error> {
         log::trace!("[Event] Method: {} Param: {:?}", method, param);
 
-        Ok(JsonValue::String("This is my response from event".into()))
+        Ok(JsonElem::String("This is my response from event".into()))
     }
 }
 
@@ -245,7 +228,7 @@ async fn test_event() {
             proxy
                 .send_event(
                     "event",
-                    JsonValue::String("Sending you this event!!".to_string()),
+                    JsonElem::String("Sending you this event!!".to_string()),
                 )
                 .await
                 .unwrap();
@@ -263,7 +246,7 @@ async fn test_event() {
             .listen_for_event("event", |param| async move {
                 log::trace!("I HAVE RECEIVED: {param:?}");
 
-                if param == JsonValue::String("Sending you this event!!".to_string()) {
+                if param == JsonElem::String("Sending you this event!!".to_string()) {
                     std::env::set_var("EVENT_TEST", true.to_string());
                     panic!();
                 }

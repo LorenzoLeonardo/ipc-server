@@ -1,15 +1,15 @@
-use ipc_client::client::message::JsonValue;
+use json_elem::jsonelem::JsonElem;
 use serde_derive::{Deserialize, Serialize};
 
-/// An object that is responsible to house error in JsonValue type
+/// An object that is responsible to house error in JsonElem type
 #[derive(Serialize, Deserialize)]
 pub struct Error {
-    error: JsonValue,
+    error: JsonElem,
 }
 
 impl Error {
-    /// Creates an Error object in JsonValue
-    pub fn new(error: JsonValue) -> Self {
+    /// Creates an Error object in JsonElem
+    pub fn new(error: JsonElem) -> Self {
         Self { error }
     }
     /// Converts this object into JSON byte format.
