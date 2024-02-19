@@ -85,10 +85,6 @@ impl TaskManager {
 
                                         log::trace!("{} has subscribe for events.", ipaddress);
                                         log::trace!("Subscriber List: {:?}", list_subscriber_for_event);
-                                        tx.send(Success::new(StaticReplies::Ok.as_ref()).serialize().unwrap())
-                                        .unwrap_or_else(|e| {
-                                            log::error!("{:?}", e);
-                                        });
                                     }
 
                                     IpcMessage::BroadCastEvent(event) => {
@@ -96,7 +92,7 @@ impl TaskManager {
                                             for holder in list_socket_holder {
                                                 log::trace!("Broadcasting this event to -> {}", &holder.name);
                                                 let mut socket = holder.socket.lock().await;
-                                                socket.write_all(serde_json::to_string(&event.result).unwrap().as_bytes()).await.unwrap_or_else(|e|{
+                                                socket.write_all(serde_json::to_string(&event).unwrap().as_bytes()).await.unwrap_or_else(|e|{
                                                     log::error!("{:?}", e);
                                                 });
                                             }
