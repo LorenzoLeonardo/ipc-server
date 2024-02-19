@@ -137,11 +137,11 @@ impl Connector {
                         0
                     });
 
-                let value: JsonElem = serde_json::from_slice(&buf[0..n]).unwrap();
+                let value: Event = serde_json::from_slice(&buf[0..n]).unwrap();
 
                 log::trace!("{:?}", &value);
 
-                match callback(value).await {
+                match callback(value.result).await {
                     Ok(_) => {
                         continue;
                     }
