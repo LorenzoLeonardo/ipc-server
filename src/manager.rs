@@ -8,8 +8,10 @@ use tokio::{
 
 use ipc_client::client::{
     connector::read,
-    message::{CallObjectRequest, JsonValue, ListObjects, StaticReplies, Success},
+    message::{CallObjectRequest, ListObjects, StaticReplies, Success},
 };
+
+use json_elem::jsonelem::JsonElem;
 
 use crate::{
     error::Error,
@@ -49,7 +51,7 @@ impl TaskManager {
                                         if let Some(s) = list_session.get(request.object.as_str()) {
                                             TaskManager::handle_call_request(s.socket.clone(), request, tx, &mut list_session).await;
                                         } else {
-                                            tx.send(Error::new(JsonValue::String(StaticReplies::ObjectNotFound.to_string())).serialize().unwrap())
+                                            tx.send(Error::new(JsonElem::String(StaticReplies::ObjectNotFound.to_string())).serialize().unwrap())
                                                 .unwrap_or_else(|e| {
                                                     log::error!("{:?}", e);
                                                 });
@@ -94,7 +96,7 @@ impl TaskManager {
                                             for holder in list_socket_holder {
                                                 log::trace!("Broadcasting this event to -> {}", &holder.name);
                                                 let mut socket = holder.socket.lock().await;
-                                                socket.write_all(event.clone().serialize().unwrap().as_slice()).await.unwrap_or_else(|e|{
+                                                socket.write_all(serde_json::to_string(&event.result).unwrap().as_bytes()).await.unwrap_or_else(|e|{
                                                     log::error!("{:?}", e);
                                                 });
                                             }
@@ -145,7 +147,7 @@ impl TaskManager {
                     log::trace!("[{}]: Shared objects: {:?}", ip_address, list_session);
 
                     tx.send(
-                        Error::new(JsonValue::String(e.to_string()))
+                        Error::new(JsonElem::String(e.to_string()))
                             .serialize()
                             .unwrap(),
                     )
@@ -157,7 +159,7 @@ impl TaskManager {
             }
             Err(e) => {
                 tx.send(
-                    Error::new(JsonValue::String(e.to_string()))
+                    Error::new(JsonElem::String(e.to_string()))
                         .serialize()
                         .unwrap(),
                 )
@@ -173,7 +175,7 @@ impl TaskManager {
         if let Ok(bytes_read) = read(&mut socket, &mut buffer).await {
             if bytes_read == 0 {
                 tx.send(
-                    Error::new(JsonValue::String(
+                    Error::new(JsonElem::String(
                         StaticReplies::ClientConnectionError.to_string(),
                     ))
                     .serialize()
@@ -190,7 +192,7 @@ impl TaskManager {
             }
         } else {
             tx.send(
-                Error::new(JsonValue::String(
+                Error::new(JsonElem::String(
                     StaticReplies::ClientConnectionError.to_string(),
                 ))
                 .serialize()

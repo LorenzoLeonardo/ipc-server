@@ -1,18 +1,17 @@
 use std::fmt::Display;
 
+use json_elem::jsonelem::JsonElem;
 use serde_derive::{Deserialize, Serialize};
 
-use super::message::JsonValue;
-
-/// An object that is responsible to house error in JsonValue type
+/// An object that is responsible to house error in JsonElem type
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Error {
-    error: JsonValue,
+    error: JsonElem,
 }
 
 impl Error {
-    /// Creates an Error object in JsonValue
-    pub fn new(error: JsonValue) -> Self {
+    /// Creates an Error object in JsonElem
+    pub fn new(error: JsonElem) -> Self {
         Self { error }
     }
 }

@@ -1,5 +1,4 @@
-use std::{collections::HashMap, fmt::Display};
-
+use json_elem::jsonelem::JsonElem;
 use serde_derive::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, Display, EnumString};
 
@@ -22,7 +21,7 @@ impl RegisterObject {
     }
     /// Converts this object into JSON bytes stream.
     pub fn serialize(self) -> Result<Vec<u8>, Error> {
-        serde_json::to_vec(&self).map_err(|e| Error::new(JsonValue::String(e.to_string())))
+        serde_json::to_vec(&self).map_err(|e| Error::new(JsonElem::String(e.to_string())))
     }
 }
 
@@ -46,73 +45,18 @@ impl Success {
     }
 }
 
-/// A list of JsonValue type.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[serde(untagged)]
-pub enum JsonValue {
-    Int32(i32),
-    Uint32(u32),
-    Int64(i64),
-    Uint64(u64),
-    Float(f64),
-    Bool(bool),
-    String(String),
-    Vec(Vec<JsonValue>),
-    HashMap(HashMap<String, JsonValue>),
-}
-
-impl Display for JsonValue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            JsonValue::Int32(val) => write!(f, "{}", val),
-            JsonValue::Uint32(val) => write!(f, "{}", val),
-            JsonValue::Int64(val) => write!(f, "{}", val),
-            JsonValue::Uint64(val) => write!(f, "{}", val),
-            JsonValue::Float(val) => write!(f, "{}", val),
-            JsonValue::Bool(val) => write!(f, "{}", val),
-            JsonValue::String(val) => write!(f, "{}", val),
-            JsonValue::Vec(val) => write!(f, "{:?}", val),
-            JsonValue::HashMap(val) => write!(f, "{:?}", val),
-        }
-    }
-}
-
-impl JsonValue {
-    /// Converts from any struct T that implements serde::Serialize trait into
-    /// a JsonValue type.
-    pub fn convert_from<T: serde::Serialize>(value: &T) -> Result<Self, Error> {
-        let val = serde_json::to_string(&value)
-            .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
-        let val: JsonValue =
-            serde_json::from_str(&val).map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
-        Ok(val)
-    }
-    /// Converts from any JsonValue to any T that implements serde::Deserialize trait.
-    pub fn convert_to<T: serde::de::DeserializeOwned>(value: &JsonValue) -> Result<T, Error> {
-        let val = serde_json::to_string(value)
-            .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
-        let val: T =
-            serde_json::from_str(&val).map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
-        Ok(val)
-    }
-
-    pub fn serialize(&self) -> Result<Vec<u8>, serde_json::Error> {
-        serde_json::to_vec(&self)
-    }
-}
-
 /// An object that is responsible in building a remote call method protocol in JSON stream.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CallObjectRequest {
     pub object: String,
     pub method: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub param: Option<JsonValue>,
+    pub param: Option<JsonElem>,
 }
 
 impl CallObjectRequest {
     /// Creates a CallObjectRequest object.
-    pub fn new(object: &str, method: &str, param: Option<JsonValue>) -> Self {
+    pub fn new(object: &str, method: &str, param: Option<JsonElem>) -> Self {
         Self {
             object: object.to_string(),
             method: method.to_string(),
@@ -129,12 +73,12 @@ impl CallObjectRequest {
 /// of CallObjectRequest is JSON format.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CallObjectResponse {
-    pub response: JsonValue,
+    pub response: JsonElem,
 }
 
 impl CallObjectResponse {
     /// Creates a new CallObjectResponse object.
-    pub fn new(response: JsonValue) -> Self {
+    pub fn new(response: JsonElem) -> Self {
         Self { response }
     }
     /// Converts this object into JSON bytes stream.
@@ -148,12 +92,12 @@ impl CallObjectResponse {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Event {
     pub event: String,
-    pub result: JsonValue,
+    pub result: JsonElem,
 }
 
 impl Event {
     /// Create a new Event object.
-    pub fn new(event: &str, result: JsonValue) -> Self {
+    pub fn new(event: &str, result: JsonElem) -> Self {
         Self {
             event: event.to_string(),
             result,

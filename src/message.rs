@@ -64,7 +64,7 @@ impl Session {
 mod tests {
     use std::collections::HashMap;
 
-    use ipc_client::client::message::JsonValue;
+    use json_elem::jsonelem::JsonElem;
 
     use crate::message::IpcMessage;
 
@@ -74,7 +74,7 @@ mod tests {
         let ipc_message: IpcMessage = serde_json::from_str(msg).unwrap();
         if let IpcMessage::BroadCastEvent(event) = ipc_message {
             assert_eq!(event.event, "your event here");
-            assert_eq!(event.result, JsonValue::HashMap(HashMap::new()));
+            assert_eq!(event.result, JsonElem::HashMap(HashMap::new()));
         } else {
             panic!("This must be IpcMessage::BroadCastEvent");
         }
@@ -100,10 +100,10 @@ mod tests {
         if let IpcMessage::Call(obj) = ipc_message {
             let mut hash = HashMap::new();
 
-            hash.insert("key".into(), JsonValue::String("parameter".into()));
+            hash.insert("key".into(), JsonElem::String("parameter".into()));
             assert_eq!(obj.object, "object name");
             assert_eq!(obj.method, "method name");
-            assert_eq!(obj.param, Some(JsonValue::HashMap(hash)));
+            assert_eq!(obj.param, Some(JsonElem::HashMap(hash)));
         } else {
             panic!("This must be IpcMessage::Call");
         }

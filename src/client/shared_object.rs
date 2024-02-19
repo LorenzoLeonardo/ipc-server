@@ -1,6 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
+use json_elem::jsonelem::JsonElem;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
@@ -11,14 +12,13 @@ use crate::{ENV_SERVER_ADDRESS, SERVER_ADDRESS};
 
 use super::connector::read;
 use super::error::Error;
-use super::message::{IncomingMessage, JsonValue, OutgoingMessage, RegisterObject, StaticReplies};
+use super::message::{IncomingMessage, OutgoingMessage, RegisterObject, StaticReplies};
 
 /// A trait to be implemented by an application that wants to share the object
 /// to the IPC server for remote call method calls from other processes.
 #[async_trait]
 pub trait SharedObject: Send + Sync + 'static {
-    async fn remote_call(&self, method: &str, param: Option<JsonValue>)
-        -> Result<JsonValue, Error>;
+    async fn remote_call(&self, method: &str, param: Option<JsonElem>) -> Result<JsonElem, Error>;
 }
 
 /// An object that is responsible in registering the object to the IPC server,
@@ -35,7 +35,7 @@ impl ObjectDispatcher {
         let server_address = std::env::var(ENV_SERVER_ADDRESS).unwrap_or(SERVER_ADDRESS.to_owned());
         let stream = TcpStream::connect(server_address)
             .await
-            .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
+            .map_err(|e| Error::new(JsonElem::String(e.to_string())))?;
 
         Ok(Self {
             socket: Arc::new(Mutex::new(stream)),
@@ -58,26 +58,26 @@ impl ObjectDispatcher {
         socket
             .write_all(object.as_slice())
             .await
-            .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
+            .map_err(|e| Error::new(JsonElem::String(e.to_string())))?;
 
         let mut buf = Vec::new();
         let n = read(&mut socket, &mut buf)
             .await
-            .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
+            .map_err(|e| Error::new(JsonElem::String(e.to_string())))?;
         if n == 0 {
-            Err(Error::new(JsonValue::String(
+            Err(Error::new(JsonElem::String(
                 StaticReplies::ServerConnectionError.to_string(),
             )))
         } else {
             let msg: IncomingMessage = serde_json::from_slice(&buf[0..n])
-                .map_err(|e| Error::new(JsonValue::String(e.to_string())))?;
+                .map_err(|e| Error::new(JsonElem::String(e.to_string())))?;
 
             match msg {
                 IncomingMessage::Register(msg) => {
                     log::trace!("Register Object: {:?}", msg);
                     Ok(())
                 }
-                IncomingMessage::Error(msg) => Err(Error::new(JsonValue::String(msg.to_string()))),
+                IncomingMessage::Error(msg) => Err(Error::new(JsonElem::String(msg.to_string()))),
                 _ => {
                     log::trace!("Unhandled Message: {:?}", msg);
                     Ok(())
@@ -123,7 +123,7 @@ impl ObjectDispatcher {
                                     Err(err) => OutgoingMessage::Error(err),
                                 }
                             } else {
-                                OutgoingMessage::Error(Error::new(JsonValue::String(
+                                OutgoingMessage::Error(Error::new(JsonElem::String(
                                     StaticReplies::ObjectNotFound.to_string(),
                                 )))
                             };
@@ -137,7 +137,7 @@ impl ObjectDispatcher {
                         }
                     }
                 } else {
-                    let response = OutgoingMessage::Error(Error::new(JsonValue::String(
+                    let response = OutgoingMessage::Error(Error::new(JsonElem::String(
                         StaticReplies::SerdeParseError.to_string(),
                     )));
                     socket
