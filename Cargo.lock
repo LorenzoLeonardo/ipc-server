@@ -179,7 +179,7 @@ dependencies = [
 
 [[package]]
 name = "ipc-server"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "async-trait",
  "chrono",
