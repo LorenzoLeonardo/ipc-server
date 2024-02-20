@@ -6,7 +6,7 @@ use ipc_client::client::connector::Connector;
 use ipc_client::client::error::Error;
 use ipc_client::client::shared_object::{ObjectDispatcher, SharedObject};
 use ipc_client::client::wait_for_objects;
-use ipc_client::ENV_SERVER_ADDRESS;
+use ipc_client::{ENV_LOGGER, ENV_SERVER_ADDRESS};
 
 use async_trait::async_trait;
 use json_elem::jsonelem::JsonElem;
@@ -57,6 +57,7 @@ fn find_available_port(start_port: u16) -> Option<u16> {
 
 #[ctor::ctor]
 fn setup_server() {
+    std::env::set_var(ENV_LOGGER, "trace");
     setup_logger();
     let address = format!("127.0.0.1:{}", find_available_port(3000).unwrap());
 
@@ -224,7 +225,7 @@ async fn test_event() {
 
         let proxy = Connector::connect().await.unwrap();
 
-        for _n in 0..5 {
+        for _n in 0..100 {
             proxy
                 .send_event(
                     "event",
@@ -248,7 +249,6 @@ async fn test_event() {
 
                 if param == JsonElem::String("Sending you this event!!".to_string()) {
                     std::env::set_var("EVENT_TEST", true.to_string());
-                    panic!();
                 }
                 Ok::<(), Error>(())
             })

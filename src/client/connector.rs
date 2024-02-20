@@ -143,6 +143,7 @@ impl Connector {
 
                 match callback(value.result).await {
                     Ok(_) => {
+                        tokio::task::yield_now().await;
                         continue;
                     }
                     Err(err) => {
