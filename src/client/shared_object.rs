@@ -145,6 +145,7 @@ impl ObjectDispatcher {
                         .await
                         .unwrap_or_else(|e| log::error!("{:?}", e));
                 }
+                tokio::task::yield_now().await;
             }
         })
     }

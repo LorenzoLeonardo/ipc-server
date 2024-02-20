@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use std::time::Duration;
 
 use json_elem::jsonelem::JsonElem;
 use tokio::sync::{Mutex, MutexGuard};
@@ -98,7 +97,7 @@ impl Server {
                     }
                 }
                 Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    tokio::time::sleep(Duration::from_nanos(1)).await;
+                    tokio::task::yield_now().await;
                 }
                 Err(e) => {
                     log::error!("{:?}", e);

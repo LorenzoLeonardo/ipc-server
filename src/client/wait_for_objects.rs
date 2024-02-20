@@ -40,9 +40,11 @@ pub async fn wait_for_objects(list: Vec<String>) {
         if n == 0 {
             return;
         }
+
         if let Ok(response) = serde_json::from_slice(&buf[0..n]) {
             if let IncomingMessage::WaitForObjects(v) = response {
                 if v.list.is_empty() {
+                    tokio::task::yield_now().await;
                     continue;
                 } else {
                     break;
@@ -51,6 +53,7 @@ pub async fn wait_for_objects(list: Vec<String>) {
         } else {
             log::trace!("Serde error!");
         }
+        tokio::task::yield_now().await;
     }
 }
 
